@@ -1,0 +1,194 @@
+<ng-template #processingFields let-stage>
+  @for (field of fields(stage); track field.key) {
+    <div class="field">
+      <label [for]="'processing-' + field.key">{{ field.label }}</label>
+      <input
+        [id]="'processing-' + field.key"
+        [name]="field.key"
+        type="number"
+        min="0"
+        step="any"
+        [value]="processing()[field.key]"
+        (input)="processingValue(field.key, $any($event.target).value)"
+        aria-required="true"
+        [attr.aria-invalid]="errors()[field.key] ? true : null"
+        [attr.aria-describedby]="'processing-error-' + field.key"
+      />
+      @if (errors()[field.key]) {
+        <p [id]="'processing-error-' + field.key" class="field-error" role="alert">
+          {{ errors()[field.key] }}
+        </p>
+      }
+    </div>
+  }
+</ng-template>
+<form #form (submit)="submit($event)" novalidate>
+  <fieldset class="stream-form-fields" [disabled]="locked()">
+    <legend class="sr-only">Настройки нового стрима</legend>
+    <div class="field">
+      <label for="stream-name">Название стрима</label>
+      <input
+        id="stream-name"
+        name="name"
+        type="text"
+        #name
+        [value]="config().name"
+        (input)="text('name', name.value)"
+        aria-required="true"
+        [attr.aria-invalid]="errors()['name'] ? true : null"
+        aria-describedby="stream-name-error"
+      />
+      @if (errors()['name']) {
+        <p class="field-error" id="stream-name-error" role="alert">{{ errors()['name'] }}</p>
+      }
+    </div>
+    <fieldset class="stream-stage">
+      <legend>1. Транскрибация через Whisper</legend>
+      <div class="field">
+        <label for="whisper-prompt">Промпт Whisper</label>
+        <textarea
+          id="whisper-prompt"
+          name="whisperPrompt"
+          #whisper
+          rows="4"
+          [value]="config().whisperPrompt"
+          (input)="text('whisperPrompt', whisper.value)"
+          [attr.aria-required]="demo()"
+          [attr.aria-invalid]="errors()['whisperPrompt'] ? true : null"
+          aria-describedby="whisper-error"
+        ></textarea>
+        @if (errors()['whisperPrompt']) {
+          <p class="field-error" id="whisper-error" role="alert">{{ errors()['whisperPrompt'] }}</p>
+        }
+      </div>
+    </fieldset>
+    <fieldset class="stream-stage">
+      <legend>2. Обработка транскрипции</legend>
+      @if (!demo()) {
+        <ng-container
+          [ngTemplateOutlet]="processingFields"
+          [ngTemplateOutletContext]="{ $implicit: 2 }"
+        />
+      }
+      <label class="checkbox-field"
+        ><input
+          type="checkbox"
+          #tempo
+          [checked]="config().options.tempoAnalysis"
+          (change)="option('tempoAnalysis', tempo.checked)"
+        />
+        Анализ темпа речи</label
+      >
+      <label class="checkbox-field"
+        ><input
+          type="checkbox"
+          #unwanted
+          [checked]="config().options.unwantedExpressions"
+          (change)="option('unwantedExpressions', unwanted.checked)"
+        />
+        Поиск нежелательных выражений</label
+      >
+      <div class="field">
+        <label for="unwanted-file">Словарь нежелательных выражений</label>
+        <input
+          id="unwanted-file"
+          name="unwantedExpressions"
+          type="file"
+          #unwantedFile
+          [disabled]="!config().options.unwantedExpressions"
+          (change)="file('unwantedExpressions', unwantedFile.files)"
+          [attr.aria-required]="config().options.unwantedExpressions"
+          [attr.aria-invalid]="errors()['unwantedExpressions'] ? true : null"
+          aria-describedby="unwanted-error"
+        />
+        @if (errors()['unwantedExpressions']) {
+          <p class="field-error" id="unwanted-error" role="alert">
+            {{ errors()['unwantedExpressions'] }}
+          </p>
+        }
+      </div>
+      <label class="checkbox-field"
+        ><input
+          type="checkbox"
+          #corrections
+          [checked]="config().options.textCorrections"
+          (change)="option('textCorrections', corrections.checked)"
+        />
+        Корректировка текста транскрипции</label
+      >
+      <div class="field">
+        <label for="corrections-file">Словарь корректировки текста</label>
+        <input
+          id="corrections-file"
+          name="textCorrections"
+          type="file"
+          #correctionsFile
+          [disabled]="!config().options.textCorrections"
+          (change)="file('textCorrections', correctionsFile.files)"
+          [attr.aria-required]="config().options.textCorrections"
+          [attr.aria-invalid]="errors()['textCorrections'] ? true : null"
+          aria-describedby="corrections-error"
+        />
+        @if (errors()['textCorrections']) {
+          <p class="field-error" id="corrections-error" role="alert">
+            {{ errors()['textCorrections'] }}
+          </p>
+        }
+      </div>
+    </fieldset>
+    <fieldset class="stream-stage">
+      <legend>3. Анализ с помощью LLM</legend>
+      <div class="field">
+        <label for="knowledge-file">База знаний</label>
+        <input
+          id="knowledge-file"
+          name="knowledgeBase"
+          type="file"
+          #knowledgeFile
+          (change)="file('knowledgeBase', knowledgeFile.files)"
+          aria-required="true"
+          [attr.aria-invalid]="errors()['knowledgeBase'] ? true : null"
+          aria-describedby="knowledge-error"
+        />
+        @if (errors()['knowledgeBase']) {
+          <p class="field-error" id="knowledge-error" role="alert">
+            {{ errors()['knowledgeBase'] }}
+          </p>
+        }
+      </div>
+      <label class="checkbox-field"
+        ><input
+          type="checkbox"
+          #critical
+          [checked]="config().options.zeroTotalOnCritical"
+          (change)="option('zeroTotalOnCritical', critical.checked)"
+        />
+        Обнулять итог при критическом нарушении</label
+      >
+      <p class="section-description">
+        Правило меняет только итог звонка; исходные оценки сохраняются.
+      </p>
+      <details class="stream-criteria">
+        <summary>11 фиксированных критериев оценки</summary>
+        <ol>
+          @for (criterion of criteria; track criterion.id) {
+            <li>{{ criterion.id }} · {{ criterion.name }}</li>
+          }
+        </ol>
+      </details>
+    </fieldset>
+    @if (demo()) {
+      <p class="info-note">
+        Демо проверяет наличие и непустой размер файлов. Содержимое не анализируется и не
+        отправляется; пригодность материалов должен проверять backend перед созданием готового
+        стрима.
+      </p>
+    }
+    @if (requestError()) {
+      <p class="field-error" role="alert">{{ requestError() }}</p>
+    }
+    <button type="submit" class="button primary">
+      {{ locked() ? 'Создаём стрим…' : requestError() ? 'Повторить создание' : 'Создать стрим' }}
+    </button>
+  </fieldset>
+</form>

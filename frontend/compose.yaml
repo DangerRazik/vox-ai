@@ -1,0 +1,57 @@
+name: vox-ai
+
+x-backend: &backend
+  init: true
+  image: vox-ai-backend:local
+  env_file:
+    - ../backend/.env
+  environment:
+    VOX_DATABASE_PATH: /data/vox.sqlite3
+    VOX_MATERIALS_ROOT: /data/streams
+    VOX_INPUTS_ROOT: /data/inputs
+    VOX_WORKER_LOCK: /data/worker.lock
+    VOX_FFPROBE_PATH: /usr/bin/ffprobe
+  volumes:
+    - vox-data:/data
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  api:
+    <<: *backend
+    build:
+      context: ../backend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+  worker:
+    <<: *backend
+    command: ["python", "-m", "backend.worker"]
+    stop_grace_period: 60s
+    depends_on:
+      api:
+        condition: service_healthy
+  web:
+    build:
+      context: .
+    ports:
+      - "127.0.0.1:18080:8080"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  vox-data:

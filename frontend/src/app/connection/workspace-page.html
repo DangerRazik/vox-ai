@@ -1,0 +1,127 @@
+<app-workspace-shell
+  [role]="role"
+  [section]="section"
+  [listQueryParams]="
+    organization() ? { organization: organization()!.id, stream: selectedStream() } : null
+  "
+  [organizationName]="organization()?.name ?? (role === 'team' ? 'Команда Vox AI' : '')"
+>
+  <div class="page-heading" [class.workspace-batches-heading]="section === 'batches'">
+    <div>
+      <h1>{{ section === 'batches' ? 'Батчи звонков' : 'Готовые стримы' }}</h1>
+      <p class="page-description">
+        {{
+          section === 'batches'
+            ? 'Загрузки и результаты выбранного стрима'
+            : 'Фиксированные правила анализа звонков'
+        }}
+      </p>
+    </div>
+    @if (role === 'customer' && section === 'batches' && streams().length) {
+      <a
+        class="button primary workspace-upload-button"
+        routerLink="/customer/upload"
+        [queryParams]="{ stream: selectedStream() }"
+        >Загрузить ZIP</a
+      >
+    }
+  </div>
+  @if ((role === 'team' && organizations().length) || (section === 'batches' && streams().length)) {
+    <section class="workspace-filters" aria-label="Фильтры списка">
+      @if (role === 'team' && organizations().length) {
+        <div class="field workspace-owner-field">
+          <label for="workspace-owner">Заказчик</label>
+          <select
+            id="workspace-owner"
+            [value]="organization()?.id"
+            (change)="selectOrganization($any($event.target).value)"
+          >
+            @for (owner of organizations(); track owner.id) {
+              <option [value]="owner.id">{{ owner.name }}</option>
+            }
+          </select>
+        </div>
+      }
+      @if (section === 'batches' && streams().length) {
+        <div class="field workspace-stream-field">
+          <label for="workspace-stream">Стрим</label>
+          <select
+            id="workspace-stream"
+            [value]="selectedStream()"
+            (change)="selectStream($any($event.target).value)"
+          >
+            @for (stream of streams(); track stream.id) {
+              <option [value]="stream.id">{{ stream.name }}</option>
+            }
+          </select>
+        </div>
+        <div class="field workspace-status-field">
+          <label for="workspace-status">Статус</label>
+          <select
+            id="workspace-status"
+            [value]="status()"
+            (change)="status.set($any($event.target).value)"
+          >
+            <option value="">Все статусы</option>
+            <option value="uploading">Загружается</option>
+            <option value="ready">Готов к запуску</option>
+            <option value="queued">В очереди</option>
+            <option value="processing">Обрабатывается</option>
+            <option value="completed">Завершён</option>
+            <option value="upload_failed">Ошибка загрузки</option>
+            <option value="batch_failed">Ошибка батча</option>
+            <option value="restoring">Восстанавливается</option>
+          </select>
+        </div>
+      }
+    </section>
+  }
+  @if (launchNotice()) {
+    <p class="info-note" [attr.role]="launchRefused() ? 'alert' : 'status'">{{ launchNotice() }}</p>
+  }
+  @if (state() === 'loading') {
+    <div class="state-panel" role="status"><h2>Загружаем данные…</h2></div>
+  } @else if (state() === 'error') {
+    <div class="state-panel error-panel" role="alert">
+      <h2>Не удалось загрузить данные</h2>
+      <p>{{ error() }}</p>
+      @if (role === 'customer' && section === 'batches' && streams().length) {
+        <a
+          class="button primary workspace-upload-button"
+          routerLink="/customer/upload"
+          [queryParams]="{ stream: selectedStream() }"
+          >Загрузить ZIP</a
+        >
+      }
+      <button class="button secondary" (click)="retry()">Повторить</button>
+    </div>
+  } @else if (!organization()) {
+    <div class="state-panel" role="status"><h2>Пока нет заказчиков</h2></div>
+  } @else if (!streams().length) {
+    <div class="state-panel" role="status">
+      <h2>Пока нет готовых стримов</h2>
+      <p>Обратитесь к команде Vox AI, чтобы подготовить правила анализа.</p>
+    </div>
+  } @else if (section === 'batches') {
+    @if (visibleBatches().length) {
+      <div class="report-table-panel">
+        <app-batch-table
+          [batches]="visibleBatches()"
+          [canLaunch]="role === 'team'"
+          (launchFinished)="launched($event)"
+        />
+      </div>
+    } @else {
+      <div class="state-panel" role="status">
+        <h2>Батчи не найдены</h2>
+        <p>Для выбранного стрима и статуса пока нет загрузок.</p>
+      </div>
+    }
+  } @else {
+    <div class="streams-list">
+      @for (stream of streams(); track stream.id) {
+        <app-public-stream-card [stream]="stream" [batchesPath]="['/', role, 'batches']" />
+      }
+    </div>
+  }
+</app-workspace-shell>

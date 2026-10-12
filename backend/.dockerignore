@@ -1,0 +1,11 @@
+**
+!Dockerfile
+!requirements.txt
+!requirements-docker.lock
+!vendor/
+!vendor/sqlite-autoconf-3530400.tar.gz
+!*.py
+!backend/
+!backend/**
+**/__pycache__/
+**/*.pyc

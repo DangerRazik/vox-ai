@@ -1,0 +1,13 @@
+**
+!Dockerfile
+!package.json
+!package-lock.json
+!angular.json
+!tsconfig*.json
+!src/
+!src/**
+!public/
+!public/**
+!deploy/
+!deploy/nginx-container.conf
+**/*.spec.ts

@@ -1,0 +1,170 @@
+<app-report-shell
+  [role]="role"
+  [demo]="navigation.demo"
+  [organizationName]="organizationName()"
+  [listQueryParams]="listQueryParams()"
+>
+  <a class="back-link" [routerLink]="navigation.batchReport(batchId())">← К отчёту батча</a>
+  @let current = state();
+  @if (current.kind === 'available') {
+    @let report = current.report;
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">
+          {{ report.organization.name }} · {{ report.batch.name }} · {{ report.stream.name }}
+        </p>
+        <h1>Разбор звонка</h1>
+        <p class="call-record-name">{{ report.call.filename }}</p>
+        <p class="page-description">Сотрудник: {{ report.call.employeeId ?? 'Не указан' }}</p>
+        @if (report.call.recordedAt) {
+          <p class="call-date">
+            Дата:
+            <time [attr.datetime]="report.call.recordedAt">{{ date(report.call.recordedAt) }}</time>
+            МСК
+          </p>
+        }
+      </div>
+    </div>
+    @if (report.call.outcome === 'error') {
+      <section class="processing-error" aria-label="Ошибка обработки записи">
+        <h2>Запись не обработана</h2>
+        <p>{{ report.call.error }}</p>
+        <p>Оценки отсутствуют: анализ записи завершился ошибкой.</p>
+      </section>
+    } @else if (report.analysis) {
+      @let analysis = report.analysis;
+      <div class="call-columns">
+        <app-call-grades [assessment]="analysis.assessment" />
+        <div class="call-context">
+          <app-report-block title="Транскрипция" preferenceKey="transcript">
+            @if (analysis.transcript?.length) {
+              <ol class="transcript-segments">
+                @for (segment of analysis.transcript; track $index) {
+                  <li>
+                    <p class="segment-meta">
+                      {{ boundary(segment.start) }}–{{ boundary(segment.end) }} ·
+                      {{ roles[segment.role] }}
+                    </p>
+                    <p class="segment-text">{{ segment.text }}</p>
+                  </li>
+                }
+              </ol>
+            } @else {
+              <p class="section-description">Транскрипция отсутствует.</p>
+            }
+            <p class="scope-note">
+              После обработки аудио удаляется. Сохранённая транскрипция остаётся доступна.
+            </p>
+          </app-report-block>
+          <app-report-block title="Метрики" preferenceKey="metrics">
+            @if (analysis.metrics?.length) {
+              <dl class="call-metrics">
+                @for (metric of analysis.metrics; track $index) {
+                  <div>
+                    <dt>{{ metric.label }}</dt>
+                    <dd>
+                      @if (metric.value === null) {
+                        Нет данных
+                      } @else {
+                        {{ number(metric.value) }} {{ metric.unit }}
+                      }
+                    </dd>
+                  </div>
+                }
+              </dl>
+            } @else {
+              <p class="section-description">Метрики отсутствуют.</p>
+            }
+            @for (detail of analysis.metricDetails ?? []; track $index) {
+              <h3>{{ detail.label }}</h3>
+              <ul class="block-list">
+                @for (item of detail.items; track $index) {
+                  <li>{{ item }}</li>
+                }
+              </ul>
+            }
+          </app-report-block>
+          <app-report-block title="Проверка по базе знаний" preferenceKey="knowledge">
+            @if (analysis.knowledgeCheck) {
+              <p class="block-text">{{ analysis.knowledgeCheck.conclusion }}</p>
+              @if (analysis.knowledgeCheck.questions?.length) {
+                <h3>Вопросы клиента</h3>
+                <ul class="block-list">
+                  @for (question of analysis.knowledgeCheck.questions; track $index) {
+                    <li>{{ question }}</li>
+                  }
+                </ul>
+              }
+              @for (mismatch of analysis.knowledgeCheck.mismatches ?? []; track $index) {
+                <h3>{{ mismatch.question }}</h3>
+                <p class="block-text">Ответ сотрудника: {{ mismatch.answer }}</p>
+                <p class="block-text">По базе знаний: {{ mismatch.expected }}</p>
+              }
+              @if (analysis.knowledgeCheck.references.length) {
+                <p class="section-description">Материалы базы знаний:</p>
+                <ul class="block-list">
+                  @for (reference of analysis.knowledgeCheck.references; track $index) {
+                    <li>{{ reference }}</li>
+                  }
+                </ul>
+              }
+            } @else {
+              <p class="section-description">Результат проверки отсутствует.</p>
+            }
+          </app-report-block>
+          <app-report-block title="Рекомендации" preferenceKey="recommendations">
+            @if (analysis.recommendations?.length) {
+              <ul class="block-list">
+                @for (recommendation of analysis.recommendations; track $index) {
+                  <li>{{ recommendation }}</li>
+                }
+              </ul>
+            } @else {
+              <p class="section-description">Рекомендации отсутствуют.</p>
+            }
+          </app-report-block>
+        </div>
+      </div>
+    } @else {
+      <p class="section-description">Данные анализа отсутствуют.</p>
+    }
+    @if (navigation.demo) {
+      <app-demo-state-controls scenario="call" (reloadRequested)="reload()" />
+    }
+  } @else {
+    <section
+      class="batch-panel"
+      aria-label="Состояние разбора звонка"
+      [attr.aria-busy]="current.kind === 'loading'"
+    >
+      @switch (current.kind) {
+        @case ('loading') {
+          <div class="state-panel" role="status">
+            <span class="spinner" aria-hidden="true"></span>
+            <h1>Загружаем разбор…</h1>
+            <p>Получаем опубликованный результат звонка.</p>
+          </div>
+        }
+        @case ('error') {
+          <div class="state-panel error-panel" role="alert">
+            <h1>Не удалось загрузить разбор</h1>
+            <p>Попробуйте запросить результат ещё раз.</p>
+            <button class="button secondary" (click)="reload()">Повторить</button>
+          </div>
+        }
+        @case ('unavailable') {
+          <div class="state-panel">
+            <h1>Разбор ещё недоступен</h1>
+            <p>Результат появится после завершения всего батча и сохранения отчёта.</p>
+          </div>
+        }
+        @case ('not-found') {
+          <div class="state-panel">
+            <h1>Звонок не найден</h1>
+            <p>Запись не существует или недоступна в этом разделе.</p>
+          </div>
+        }
+      }
+    </section>
+  }
+</app-report-shell>

@@ -1,0 +1,123 @@
+<app-report-shell
+  role="customer"
+  [demo]="navigation.demo"
+  activeSection="comparison"
+  [organizationName]="catalog()?.organization?.name ?? ''"
+  [listQueryParams]="listQuery()"
+>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">{{ catalog()?.organization?.name }} · {{ catalog()?.stream?.name }}</p>
+      <h1>Сравнение батчей</h1>
+      <p class="page-description">Опубликованные результаты по одинаковым правилам</p>
+    </div>
+  </div>
+  @if (catalogState() === 'ready') {
+    @let data = catalog()!;
+    <div class="field">
+      <label for="comparison-stream">Стрим</label>
+      <select
+        id="comparison-stream"
+        #stream
+        (change)="selectStream(stream.value)"
+        [disabled]="!data.streams.length"
+      >
+        @for (item of data.streams; track item.id) {
+          <option [value]="item.id" [selected]="item.id === data.stream?.id">
+            {{ item.name }}
+          </option>
+        }
+      </select>
+    </div>
+    @if (selectionNotice()) {
+      <p class="info-note" role="status">{{ selectionNotice() }}</p>
+    }
+    @if (data.batches.length < 2) {
+      <div class="state-panel" role="status">
+        <h2>Недостаточно завершённых батчей</h2>
+        <p>
+          Для сравнения нужны хотя бы два завершённых батча одного стрима. Выберите другой стрим или
+          дождитесь публикации отчётов.
+        </p>
+      </div>
+    } @else {
+      @if (tableState().kind !== 'available') {
+        <fieldset class="comparison-selection">
+          <legend>Завершённые батчи</legend>
+          @for (batch of data.batches; track batch.id) {
+            <label class="comparison-choice"
+              ><input
+                type="checkbox"
+                [checked]="selectedIds().includes(batch.id)"
+                #choice
+                (change)="selectBatch(batch.id, choice.checked)"
+              />
+              <span
+                >{{ batch.name }} <span class="muted">· {{ batch.filename }}</span></span
+              >
+              @if (selectedIds().includes(batch.id)) {
+                <span class="selected-stream"
+                  >Колонка {{ selectedIds().indexOf(batch.id) + 1 }}</span
+                >
+              }
+            </label>
+          }
+        </fieldset>
+        <button
+          class="button primary"
+          [disabled]="selectedIds().length < 2 || tableState().kind === 'loading'"
+          (click)="compare()"
+        >
+          Сравнить выбранные батчи
+        </button>
+      }
+      <section
+        #resultPanel
+        tabindex="-1"
+        class="report-section"
+        aria-label="Результат сравнения"
+        [attr.aria-busy]="tableState().kind === 'loading'"
+      >
+        @let result = tableState();
+        @switch (result.kind) {
+          @case ('available') {
+            <app-comparison-table [columns]="result.columns" [batchesPath]="navigation.batches" />
+          }
+          @case ('loading') {
+            <div class="state-panel" role="status"><h2>Загружаем сравнение…</h2></div>
+          }
+          @case ('error') {
+            <div class="state-panel error-panel" role="alert">
+              <h2>Не удалось загрузить сравнение</h2>
+              <p>Выбранные батчи сохранены. Повторите запрос.</p>
+              <button class="button secondary" (click)="compare()">Повторить сравнение</button>
+            </div>
+          }
+          @case ('invalid-selection') {
+            <div class="state-panel error-panel" role="alert">
+              <h2>Сравнение недоступно</h2>
+              <p>{{ result.message }}</p>
+            </div>
+          }
+        }
+      </section>
+    }
+  } @else if (catalogState() === 'error') {
+    <div class="state-panel error-panel" role="alert">
+      <h2>Не удалось загрузить батчи для сравнения</h2>
+      <p>Попробуйте запросить список ещё раз.</p>
+      <button class="button secondary" (click)="reload()">Повторить</button>
+    </div>
+  } @else {
+    <div class="state-panel" role="status"><h2>Загружаем завершённые батчи…</h2></div>
+  }
+  @if (navigation.demo) {
+    <app-demo-state-controls
+      scenario="comparison"
+      [locked]="
+        catalogState() !== 'ready' || selectedIds().length < 2 || tableState().kind === 'loading'
+      "
+      (reloadRequested)="compare()"
+    />
+  }
+</app-report-shell>

@@ -1,0 +1,41 @@
+# Local credentials
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Runtime data and call recordings
+data/
+*.sqlite3
+*.sqlite3-*
+*.db
+*.mp3
+*.wav
+*.ogg
+*.m4a
+*.flac
+*.aac
+*.opus
+*.webm
+*.mp4
+*.doc
+*.docx
+
+# Dependencies, build output and local tools
+node_modules/
+dist/
+.angular/
+.venv/
+.venv-backend/
+.runtime/
+.runtime-backend/
+__pycache__/
+*.pyc
+*.log
+.scratch/runtime/
+test-results/
+playwright-report/
+coverage/
+.DS_Store
+Thumbs.db

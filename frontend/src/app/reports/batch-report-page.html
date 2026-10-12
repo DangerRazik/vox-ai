@@ -1,0 +1,161 @@
+<app-report-shell
+  [role]="role"
+  [demo]="navigation.demo"
+  [organizationName]="organizationName()"
+  [listQueryParams]="listQueryParams()"
+>
+  @let current = state();
+  @if (current.kind === 'available') {
+    @let report = current.report;
+    <a
+      class="back-link"
+      [routerLink]="navigation.batches"
+      [queryParams]="{ organization: report.organization.id, stream: report.stream.id }"
+      >← К батчам</a
+    >
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">
+          {{ report.organization.name }} · {{ report.stream.name }}
+        </p>
+        <h1>Сводный отчёт</h1>
+        <p class="page-description">{{ report.batch.name }} · {{ report.batch.filename }}</p>
+        <p class="report-publication">Завершён · результаты всего батча опубликованы</p>
+      </div>
+      @if (role === 'customer') {
+        <a
+          class="button secondary"
+          [routerLink]="navigation.comparison"
+          [queryParams]="{
+            organization: report.organization.id,
+            stream: report.stream.id,
+            batch: report.batch.id,
+          }"
+          >Сравнить с другими батчами</a
+        >
+      }
+    </div>
+
+    <app-report-summary [summary]="report.summary" />
+    <app-criterion-chart [summary]="report.summary" />
+    <section class="report-section" aria-labelledby="calls-title">
+      <h2 id="calls-title">Звонки батча</h2>
+      <p class="section-description">
+        Все {{ report.summary.acceptedCalls }} принятых записей. Средние рассчитаны по
+        {{ report.summary.successfulCalls }} успешным.
+      </p>
+      <div class="report-table-panel">
+        <div class="table-scroll" role="region" aria-label="Таблица звонков" tabindex="0">
+          <table>
+            <caption class="sr-only">
+              Звонки батча
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Запись</th>
+                <th scope="col">Сотрудник</th>
+                <th scope="col" class="numeric">Итог</th>
+                <th scope="col">Результат</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (call of report.calls; track call.id) {
+                <tr>
+                  <th scope="row" class="call-filename">
+                    <a [routerLink]="navigation.callReport(report.batch.id, call.id)">{{
+                      call.filename
+                    }}</a>
+                  </th>
+                  <td>{{ call.employeeId ?? 'Не указан' }}</td>
+                  <td class="numeric">
+                    @if (call.outcome === 'success') {
+                      {{ number(call.total) }} из {{ report.summary.maxTotal ?? 11 }}
+                    } @else {
+                      <span class="muted">Нет данных</span>
+                    }
+                  </td>
+                  <td>
+                    @if (call.outcome === 'success') {
+                      @if (call.criticalViolation) {
+                        <span class="status-badge red">Критическое нарушение</span>
+                      } @else {
+                        <span class="status-badge green">Успешно</span>
+                      }
+                    } @else {
+                      <span class="status-badge red">
+                        @switch (call.stage) {
+                          @case ('transcription') {
+                            Ошибка транскрибации
+                          }
+                          @case ('processing') {
+                            Ошибка обработки текста
+                          }
+                          @case ('unknown') {
+                            Ошибка обработки записи
+                          }
+                          @case ('analysis') {
+                            Ошибка анализа
+                          }
+                        }
+                      </span>
+                      <span class="call-error">{{ call.error }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <app-technical-details [ids]="[
+      { label: 'ID батча', value: report.batch.id },
+      { label: 'ID стрима', value: report.stream.id },
+      { label: 'ID загрузки', value: report.batch.uploadId }
+    ]" />
+    @if (navigation.demo) {
+      <app-demo-state-controls scenario="report" (reloadRequested)="reload()" />
+    }
+  } @else {
+    <a class="back-link" [routerLink]="navigation.batches" [queryParams]="listQueryParams()"
+      >← К батчам</a
+    >
+    <section
+      class="batch-panel"
+      aria-label="Состояние отчёта"
+      [attr.aria-busy]="current.kind === 'loading'"
+    >
+      @switch (current.kind) {
+        @case ('loading') {
+          <div class="state-panel" role="status">
+            <span class="spinner" aria-hidden="true"></span>
+            <h1>Загружаем отчёт…</h1>
+            <p>Получаем опубликованные результаты батча.</p>
+          </div>
+        }
+        @case ('error') {
+          <div class="state-panel error-panel" role="alert">
+            <h1>Не удалось загрузить отчёт</h1>
+            <p>Попробуйте запросить отчёт ещё раз.</p>
+            <button class="button secondary" (click)="reload()">Повторить</button>
+          </div>
+        }
+        @case ('unavailable') {
+          <div class="state-panel">
+            <h1>Отчёт ещё недоступен</h1>
+            <p>
+              {{ current.batch.name }}. Результаты появятся после завершения всего батча и
+              сохранения отчёта.
+            </p>
+          </div>
+        }
+        @case ('not-found') {
+          <div class="state-panel">
+            <h1>Отчёт не найден</h1>
+            <p>Батч не существует или недоступен в этом разделе.</p>
+          </div>
+        }
+      }
+    </section>
+  }
+</app-report-shell>

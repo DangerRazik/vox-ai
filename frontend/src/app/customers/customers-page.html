@@ -1,0 +1,102 @@
+<app-report-shell
+  [demo]="navigation.demo"
+  role="team"
+  activeSection="customers"
+  organizationName="Все заказчики"
+>
+  <div class="page-heading">
+    <div>
+      <h1>Заказчики</h1>
+      <p class="page-description">
+        Организации и выдача {{ navigation.demo ? 'условного ключа' : 'API-ключа' }} при создании
+      </p>
+    </div>
+  </div>
+  @if (created(); as receipt) {
+    <app-customer-receipt [receipt]="receipt" [demo]="navigation.demo" (closed)="closeReceipt()" />
+  } @else {
+    <section class="customer-panel" aria-labelledby="new-customer-title">
+      <h2 id="new-customer-title">Создать заказчика</h2>
+      <p class="section-description">
+        @if (navigation.demo) {
+          Новая организация сохраняется в демо до перезагрузки страницы.
+        }
+        Ключ виден только в результате создания. Сохраните его перед закрытием.
+      </p>
+      <app-customer-form
+        [locked]="creating()"
+        [requestError]="createError()"
+        [fieldError]="createNameError()"
+        (edited)="createNameError.set('')"
+        [focusOnReady]="focusNewCustomer()"
+        (submitted)="create($event)"
+      />
+    </section>
+  }
+  <section
+    class="report-section"
+    aria-labelledby="customers-list-title"
+    [attr.aria-busy]="state().kind === 'loading'"
+  >
+    <h2 id="customers-list-title">Список заказчиков</h2>
+    @let list = state();
+    @switch (list.kind) {
+      @case ('loading') {
+        <div class="state-panel" role="status"><h3>Загружаем заказчиков…</h3></div>
+      }
+      @case ('error') {
+        <div class="state-panel error-panel" role="alert">
+          <h3>Не удалось загрузить заказчиков</h3>
+          <p>Попробуйте запросить список ещё раз.</p>
+          <button class="button secondary" (click)="reload()">Повторить список</button>
+        </div>
+      }
+      @case ('ready') {
+        @if (!list.customers.length) {
+          <div class="state-panel">
+            <h3>Пока нет заказчиков</h3>
+            <p>Создайте первую организацию с помощью формы выше.</p>
+          </div>
+        } @else {
+          <div class="report-table-panel">
+            <div class="table-scroll" role="region" aria-label="Таблица заказчиков" tabindex="0">
+              <table class="customers-table">
+                <caption class="sr-only">
+                  Организации команды Vox AI
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Название</th>
+                    <th scope="col">ID</th>
+                    <th scope="col">Действие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (customer of list.customers; track customer.id) {
+                    <tr>
+                      <th scope="row">{{ customer.name }}</th>
+                      <td class="customer-id">{{ customer.id }}</td>
+                      <td>
+                        <a
+                          [routerLink]="navigation.batches"
+                          [queryParams]="{ organization: customer.id }"
+                          >Батчи заказчика</a
+                        >
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      }
+    }
+  </section>
+  @if (navigation.demo) {
+    <app-demo-customers-controls
+      [locked]="creating() || state().kind === 'loading'"
+      (reloadRequested)="reload()"
+    />
+  }
+</app-report-shell>

@@ -1,0 +1,45 @@
+<app-demo-shell
+  role="customer"
+  [organizationName]="data()?.organization?.name ?? ''"
+  activeSection="streams"
+  [listQueryParams]="listQuery()"
+>
+  <div class="page-heading">
+    <div>
+      <h1>Готовые стримы</h1>
+      <p class="page-description">Правила анализа звонков вашей организации</p>
+    </div>
+  </div>
+  <p class="info-note">
+    Настройки стрима фиксированы. Новые правила получают новый ID; результаты разных стримов не
+    смешиваются.
+  </p>
+  @if (state() === 'ready') {
+    @let catalog = data()!;
+    @if (!catalog.streams.length) {
+      <div class="state-panel" role="status">
+        <h2>Пока нет готовых стримов</h2>
+        <p>Обратитесь к команде Vox AI, чтобы подготовить правила анализа вашей организации.</p>
+        <button class="button secondary" (click)="reload()">Обновить список</button>
+      </div>
+    }
+    <div class="streams-list">
+      @for (stream of catalog.streams; track stream.id) {
+        <app-public-stream-card
+          [stream]="stream"
+          [selected]="selectedStream() === stream.id"
+          [batchesPath]="['/demo/customer/batches']"
+        />
+      }
+    </div>
+  } @else if (state() === 'error') {
+    <div class="state-panel error-panel" role="alert">
+      <h2>Не удалось загрузить стримы</h2>
+      <p>Попробуйте запросить готовые стримы ещё раз.</p>
+      <button class="button secondary" (click)="reload()">Повторить</button>
+    </div>
+  } @else {
+    <div class="state-panel" role="status"><h2>Загружаем стримы…</h2></div>
+  }
+  <app-demo-streams-controls [locked]="state() === 'loading'" (reloadRequested)="reload()" />
+</app-demo-shell>
