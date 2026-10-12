@@ -53,7 +53,6 @@
           rows="4"
           [value]="config().whisperPrompt"
           (input)="text('whisperPrompt', whisper.value)"
-          [attr.aria-required]="demo()"
           [attr.aria-invalid]="errors()['whisperPrompt'] ? true : null"
           aria-describedby="whisper-error"
         ></textarea>
@@ -64,12 +63,12 @@
     </fieldset>
     <fieldset class="stream-stage">
       <legend>2. Обработка транскрипции</legend>
-      @if (!demo()) {
-        <ng-container
-          [ngTemplateOutlet]="processingFields"
-          [ngTemplateOutletContext]="{ $implicit: 2 }"
-        />
-      }
+
+      <ng-container
+        [ngTemplateOutlet]="processingFields"
+        [ngTemplateOutletContext]="{ $implicit: 2 }"
+      />
+
       <label class="checkbox-field"
         ><input
           type="checkbox"
@@ -177,13 +176,7 @@
         </ol>
       </details>
     </fieldset>
-    @if (demo()) {
-      <p class="info-note">
-        Демо проверяет наличие и непустой размер файлов. Содержимое не анализируется и не
-        отправляется; пригодность материалов должен проверять backend перед созданием готового
-        стрима.
-      </p>
-    }
+
     @if (requestError()) {
       <p class="field-error" role="alert">{{ requestError() }}</p>
     }

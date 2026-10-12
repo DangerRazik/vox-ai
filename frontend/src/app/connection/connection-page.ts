@@ -33,7 +33,6 @@ import { ApiConnection, connectionError, connectionErrorField } from './api-conn
           @if (keyError()) {
             <p id="key-error" role="alert" class="field-error">{{ keyError() }}</p>
           }
-          <p class="muted">Ключ сохранится в этом браузере до выхода.</p>
           <button class="button primary" type="submit">
             {{ busy() ? 'Подключаемся…' : 'Подключиться' }}
           </button>
@@ -47,7 +46,6 @@ import { ApiConnection, connectionError, connectionErrorField } from './api-conn
           </button>
         }
       </form>
-      <a routerLink="/">Открыть демонстрацию</a>
     </main>
   `,
 })

@@ -117,8 +117,8 @@ describe('Таблица сравнения опубликованных сво�
       'Нулевой итог',
     ]);
     expect(links.map((link) => link.getAttribute('href'))).toEqual([
-      '/demo/customer/batches/empty/report',
-      '/demo/customer/batches/critical/report',
+      '/customer/batches/empty/report',
+      '/customer/batches/critical/report',
     ]);
   });
 });

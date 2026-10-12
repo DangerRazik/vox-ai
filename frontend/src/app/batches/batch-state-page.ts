@@ -18,7 +18,7 @@ import { UploadIntakeResult } from '../uploads/upload-result';
 import { reportNavigation } from '../reports/report-navigation';
 import { BatchDetailsSource } from './batch-details-source';
 import { BatchDetails, BatchDetailsResult, BATCH_STATE_MESSAGES } from './batch-details';
-import { BATCH_STATUSES, DemoRole } from './batch-models';
+import { BATCH_STATUSES, AccessRole } from './batch-models';
 import { RecoveryForm } from '../uploads/recovery-form';
 import {
   RestoreRequest,
@@ -26,11 +26,8 @@ import {
   UploadFiles,
   UploadsSource,
 } from '../uploads/upload-models';
-import { DemoRecoveryControls } from '../uploads/demo-recovery-controls';
-import { DemoStateControls } from './demo-state-controls';
 import { BatchLaunchAction, launchMessage } from './batch-launch-action';
 import { StartBatchResult } from './admin-batches-source';
-import { DemoAccess } from '../shared/demo-access';
 
 type State = BatchDetailsResult | { kind: 'loading' | 'error' };
 
@@ -42,14 +39,11 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
     UploadIntakeResult,
     RouterLink,
     RecoveryForm,
-    DemoRecoveryControls,
-    DemoStateControls,
     BatchLaunchAction,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-report-shell
-      [demo]="navigation.demo"
       [role]="role"
       [organizationName]="organizationName()"
       [listQueryParams]="listQuery()"
@@ -82,17 +76,26 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
         @case ('available') {
           <section class="upload-panel batch-details" aria-label="Сведения о батче">
             <h2>{{ view.details.batch.name }}</h2>
-            <p class="upload-identity">{{ view.details.batch.filename }}</p>
             <p>
               <span [class]="'status-badge ' + statuses[view.details.batch.status].tone">{{
                 statuses[view.details.batch.status].label
               }}</span>
             </p>
-            <p>{{ messages[view.details.batch.status] }}</p>
+            @if (view.details.batch.status !== 'upload_failed') {
+              <p>{{ messages[view.details.batch.status] }}</p>
+            }
             <p>Стрим: {{ view.details.stream.name }}</p>
-            <p>Принято записей: {{ view.details.batch.acceptedCalls }}</p>
+            @if (view.details.intake; as intake) {
+              <app-upload-result [result]="intake" [compact]="true" />
+            } @else {
+              <p>Принято записей: {{ view.details.batch.acceptedCalls }}</p>
+            }
 
-            @if (view.details.failure) {
+            @if (
+              view.details.failure &&
+              (view.details.batch.status !== 'upload_failed' ||
+                !view.details.intake?.errors?.length)
+            ) {
               <p class="field-error">Причина: {{ view.details.failure }}</p>
             }
             @if (view.details.recovery; as progress) {
@@ -104,26 +107,22 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
                 [routerLink]="navigation.batchReport(view.details.batch.id)"
                 >Открыть отчёт</a
               >
-            } @else {
+            } @else if (
+              view.details.batch.status === 'queued' || view.details.batch.status === 'processing'
+            ) {
               <p class="scope-note">
                 Отчёт ещё не опубликован. Оценки появятся после завершения всего батча.
               </p>
             }
-            @if (role === 'team' && (!navigation.demo || access.role() === 'team')) {
+            @if (role === 'team') {
               @if (view.details.batch.status === 'ready') {
                 <app-batch-launch-action
                   [batch]="view.details.batch"
                   (finished)="launched($event)"
                 />
               } @else {
-                <details class="demo-controls">
-                  <summary>
-                    {{
-                      navigation.demo
-                        ? 'Демо-сценарий повторного запуска'
-                        : 'Повтор запроса запуска'
-                    }}
-                  </summary>
+                <details class="request-controls">
+                  <summary>Повтор запроса запуска</summary>
                   <p>
                     Запрос возвращает текущее состояние или отказ. Новое задание для уже запущенного
                     батча не создаётся.
@@ -137,9 +136,6 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
               }
             }
           </section>
-          @if (view.details.intake; as intake) {
-            <app-upload-result [result]="intake" [demo]="false" />
-          }
           @if (launchNotice()) {
             <p class="info-note" [attr.role]="launchRefused() ? 'alert' : 'status'">
               {{ launchNotice() }}
@@ -155,31 +151,21 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
             role === 'customer' &&
             (view.details.batch.status === 'batch_failed' ||
               view.details.batch.status === 'upload_failed' ||
-              (!navigation.demo &&
-                (view.details.batch.status === 'restoring' ||
-                  view.details.batch.status === 'uploading')))
+              view.details.batch.status === 'restoring' ||
+              view.details.batch.status === 'uploading')
           ) {
             <app-recovery-form
               [details]="view.details"
-              [demo]="navigation.demo"
               [locked]="request() !== null"
               [error]="formError()"
               [serverError]="fieldError()"
               (edited)="fieldError.set(null)"
               (submitted)="restore($event)"
             >
-              @if (navigation.demo) {
-                <app-demo-recovery-controls
-                  [locked]="request() !== null"
-                  [initialImport]="view.details.batch.status === 'upload_failed'"
-                />
-              }
             </app-recovery-form>
           }
           @if (pending()) {
-            <p role="status">
-              {{ navigation.demo ? 'Имитируем повторную загрузку…' : 'Передаём исходные записи…' }}
-            </p>
+            <p role="status">Передаём исходные записи…</p>
           }
           @if (requestError()) {
             <div class="state-panel error-panel" role="alert">
@@ -198,35 +184,26 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
               <button class="button primary" (click)="send()">Повторить передачу</button>
             </div>
           }
-          <app-technical-details [ids]="[
+          <app-technical-details
+            [ids]="[
               { label: 'ID батча', value: view.details.batch.id, testId: 'batch-id' },
               { label: 'ID стрима', value: view.details.stream.id },
-              { label: 'ID загрузки', value: view.details.uploadId, testId: 'upload-id' }
-            ]" />
+              { label: 'ID загрузки', value: view.details.uploadId, testId: 'upload-id' },
+            ]"
+          />
         }
-      }
-      @if (navigation.demo) {
-        <app-demo-state-controls
-          scenario="details"
-          [locked]="request() !== null"
-          (reloadRequested)="reload()"
-        />
       }
     </app-report-shell>
   `,
 })
 export class BatchStatePage {
-  protected readonly access = inject(DemoAccess);
   private readonly source = inject(BatchDetailsSource);
   private readonly uploads = inject(UploadsSource);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly refresh = new Subject<void>();
-  protected readonly role = this.route.snapshot.data['role'] as DemoRole;
-  protected readonly navigation = reportNavigation(
-    this.role,
-    this.route.snapshot.data['mode'] === 'rest',
-  );
+  protected readonly role = this.route.snapshot.data['role'] as AccessRole;
+  protected readonly navigation = reportNavigation(this.role);
   protected readonly state = signal<State>({ kind: 'loading' });
   protected readonly context = signal<BatchDetails | null>(null);
   protected readonly request = signal<RestoreRequest | null>(null);
@@ -363,7 +340,6 @@ export class BatchStatePage {
           if (result.kind === 'available') {
             this.context.set(result.details);
             if (
-              !this.navigation.demo &&
               ['ready', 'queued', 'processing', 'completed'].includes(result.details.batch.status)
             ) {
               this.requestError.set(false);

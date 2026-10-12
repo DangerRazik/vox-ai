@@ -34,7 +34,7 @@ import { ReportBlock } from './report-block';
           }
         </section>
       }
-      <app-report-block title="Исходные оценки критериев" preferenceKey="criteria">
+      <app-report-block title="Исходные оценки критериев" preferenceKey="criteria" [defaultExpanded]="true">
         <p class="section-description">Раскройте критерий, чтобы прочитать пояснение.</p>
         @for (criterion of selectedCriteria(result); track criterion.id) {
           <details class="criterion-detail" [attr.aria-label]="criterion.name">

@@ -20,35 +20,25 @@ import { reportNavigation } from '../reports/report-navigation';
 import { connectionError } from '../connection/api-connection';
 import { AdminStream, AdminStreamsSource } from './admin-streams-source';
 import { StreamSnapshot } from './stream-snapshot';
-import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
 import { DeleteStreamConfirmation } from './delete-stream-confirmation';
 
 @Component({
   selector: 'app-admin-stream-details-page',
-  imports: [
-    DatePipe,
-    ReportShell,
-    RouterLink,
-    StreamSnapshot,
-    DemoAdminStreamsControls,
-    DeleteStreamConfirmation,
-  ],
+  imports: [DatePipe, ReportShell, RouterLink, StreamSnapshot, DeleteStreamConfirmation],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-report-shell
-      [demo]="navigation.demo"
       role="team"
       activeSection="streams"
       [organizationName]="organization()?.name ?? organizationId()"
       [listQueryParams]="{ organization: organizationId(), stream: stream()?.id ?? '' }"
     >
-      <div class="page-heading">
+      <div class="page-heading stream-details-heading">
         <div>
           <h1 #pageTitle tabindex="-1">Просмотр стрима</h1>
           @if (stream(); as item) {
             <p class="page-description">
-              Создан {{ item.createdAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC · Готов к
-              использованию
+              Создан {{ item.createdAt | date: 'dd.MM.yyyy HH:mm' : 'UTC' }} UTC
             </p>
           }
         </div>
@@ -75,35 +65,33 @@ import { DeleteStreamConfirmation } from './delete-stream-confirmation';
           </p>
         </div>
       } @else if (stream(); as item) {
-        <a
-          class="button secondary"
-          [routerLink]="navigation.newStream"
-          [queryParams]="{ organization: item.organizationId, basedOn: item.id }"
-          >Создать на основе стрима</a
-        >
-        <app-stream-snapshot [stream]="item" />
-        <button type="button" class="button danger" (click)="deleteTarget.set(item)">
-          Удалить стрим
-        </button>
-        <a
-          class="button secondary"
-          [routerLink]="navigation.batches"
-          [queryParams]="{ organization: item.organizationId, stream: item.id }"
-          >Открыть батчи</a
-        >
+        <app-stream-snapshot [stream]="item">
+          <a
+            snapshot-action
+            class="button secondary"
+            [routerLink]="navigation.newStream"
+            [queryParams]="{ organization: item.organizationId, basedOn: item.id }"
+            >Создать на основе стрима</a
+          >
+        </app-stream-snapshot>
+        <div class="page-actions">
+          <button type="button" class="button danger" (click)="deleteTarget.set(item)">
+            Удалить стрим
+          </button>
+          <a
+            class="button secondary"
+            [routerLink]="navigation.batches"
+            [queryParams]="{ organization: item.organizationId, stream: item.id }"
+            >Открыть батчи</a
+          >
+        </div>
       } @else {
         <div class="state-panel">
           <h2>Стрим не найден</h2>
           <p>Стрим недоступен для выбранной организации.</p>
         </div>
       }
-      @if (navigation.demo) {
-        <app-demo-admin-streams-controls
-          [canDelete]="stream() !== null"
-          [locked]="state() === 'loading' || deleteTarget() !== null"
-          (reloadRequested)="reload()"
-        />
-      }
+
       @if (deleteTarget(); as target) {
         <app-delete-stream-confirmation
           [stream]="target"
@@ -117,10 +105,7 @@ import { DeleteStreamConfirmation } from './delete-stream-confirmation';
   `,
 })
 export class AdminStreamDetailsPage {
-  protected readonly navigation = reportNavigation(
-    'team',
-    inject(ActivatedRoute).snapshot.data['mode'] === 'rest',
-  );
+  protected readonly navigation = reportNavigation('team');
   private readonly source = inject(AdminStreamsSource);
   private readonly customers = inject(CustomersSource);
   private readonly route = inject(ActivatedRoute);
@@ -204,10 +189,7 @@ export class AdminStreamDetailsPage {
           if (this.deleteTarget() !== target) return;
           this.deleting.set(false);
           this.deleteError.set(
-            this.navigation.demo
-              ? 'Не удалось удалить стрим. Подтверждение сохранено; повторите попытку или отмените удаление.'
-              : connectionError(error) +
-                  ' Подтверждение сохранено; повторите или отмените удаление.',
+            connectionError(error) + ' Подтверждение сохранено; повторите или отмените удаление.',
           );
         },
       });

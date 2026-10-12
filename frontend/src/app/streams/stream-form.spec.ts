@@ -3,16 +3,11 @@ import { TestBed } from '@angular/core/testing';
 import { StreamForm, StreamFormValue } from './stream-form';
 import { StreamConfiguration } from './admin-streams-source';
 
-async function render(
-  initialConfiguration?: StreamConfiguration,
-  demo = true,
-  initialWhisperPrompt = '',
-) {
+async function render(initialConfiguration?: StreamConfiguration, initialWhisperPrompt = '') {
   await TestBed.configureTestingModule({ imports: [StreamForm] }).compileComponents();
   const fixture = TestBed.createComponent(StreamForm);
   if (initialConfiguration)
     fixture.componentRef.setInput('initialConfiguration', initialConfiguration);
-  fixture.componentRef.setInput('demo', demo);
   fixture.componentRef.setInput('initialWhisperPrompt', initialWhisperPrompt);
   const submitted: StreamFormValue[] = [];
   fixture.componentInstance.submitted.subscribe((value) => submitted.push(value));
@@ -89,7 +84,7 @@ describe('Форма стрима', () => {
     expect(initial.enabledCriteria).toEqual(['1.1', '5.2']);
   });
   it('не показывает фиксированные технические поля в рабочей форме', async () => {
-    const form = await render(undefined, false);
+    const form = await render();
     for (const name of [
       'whisperModel',
       'speechLang',
@@ -257,7 +252,7 @@ describe('Форма настоящего REST-стрима', () => {
     },
   };
   it('требует новые файлы при копировании полной конфигурации, допускает пустой Whisper и сохраняет выбранные материалы при исправлении', async () => {
-    const form = await render(initial, false);
+    const form = await render(initial);
     await form.submit();
     expect(form.submitted).toEqual([]);
     expect(form.element.textContent).toContain('Приложите непустой файл базы знаний');
@@ -277,7 +272,7 @@ describe('Форма настоящего REST-стрима', () => {
     expect(initial.processing?.longPauseSec).toBe(2);
   });
   it('создаёт стрим без ввода фиксированных настроек и не показывает служебные значения', async () => {
-    const form = await render(undefined, false);
+    const form = await render();
     await form.fill('name', 'Новый стрим');
     await form.file('knowledgeBase');
     await form.toggle('Поиск нежелательных выражений', false);
@@ -289,7 +284,7 @@ describe('Форма настоящего REST-стрима', () => {
     expect(form.element.textContent).not.toContain('Демо проверяет');
   });
   it('подставляет исходный Whisper и отправляет его правки', async () => {
-    const form = await render(undefined, false, 'Компания из исходного кода');
+    const form = await render(undefined, 'Компания из исходного кода');
     expect(form.input('whisperPrompt').value).toBe('Компания из исходного кода');
     await form.fill('whisperPrompt', 'Термины заказчика');
     await form.fill('name', 'Новый стрим');

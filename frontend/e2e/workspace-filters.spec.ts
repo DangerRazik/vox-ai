@@ -72,7 +72,8 @@ test('панель фильтров компактна; статусы обно�
   const filter = await panel.getByLabel('Статус', { exact: true }).boundingBox();
   expect(Math.abs(owner!.y - stream!.y)).toBeLessThan(1);
   expect(Math.abs(filter!.y - stream!.y)).toBeLessThan(1);
-  expect(stream!.width).toBeGreaterThan(owner!.width);
+  expect(Math.abs(stream!.width - owner!.width)).toBeLessThan(1);
+  expect(Math.abs(filter!.width - owner!.width)).toBeLessThan(1);
   await page.screenshot({ path: testInfo.outputPath('filters-desktop.png'), fullPage: true });
   status = 'completed';
   await page.clock.fastForward(10_000);
@@ -159,12 +160,10 @@ test('в списке заказчика видны имена стримов, �
   const buttonBox = (await upload.boundingBox())!;
   expect(buttonBox.height).toBeGreaterThanOrEqual(48);
   expect(buttonBox.width).toBeGreaterThanOrEqual(156);
-  const description = (await page
-    .getByText('Загрузки и результаты выбранного стрима', { exact: true })
-    .boundingBox())!;
+  const heading = (await page.locator('.page-heading').boundingBox())!;
   const filters = (await panel.boundingBox())!;
-  expect(filters.y - description.y - description.height).toBeGreaterThanOrEqual(24);
-  expect(filters.y - description.y - description.height).toBeLessThanOrEqual(28);
+  expect(filters.y - heading.y - heading.height).toBeGreaterThanOrEqual(24);
+  expect(filters.y - heading.y - heading.height).toBeLessThanOrEqual(28);
   await page.screenshot({
     path: testInfo.outputPath('customer-batches-desktop.png'),
     fullPage: true,

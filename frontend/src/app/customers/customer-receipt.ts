@@ -19,22 +19,17 @@ import { CreatedCustomer } from './customers-source';
       <p>{{ receipt().customer.name }}</p>
       <p class="stream-id">ID: {{ receipt().customer.id }}</p>
       <div class="field">
-        <label for="issued-demo-key">{{
-          demo() ? 'Демонстрационный ключ' : 'API-ключ заказчика'
-        }}</label>
+        <label for="issued-api-key">API-ключ заказчика</label>
         <input
           type="text"
-          id="issued-demo-key"
+          id="issued-api-key"
           #keyField
           readonly
           [value]="receipt().key"
-          aria-describedby="demo-key-description"
+          aria-describedby="api-key-description"
         />
       </div>
-      <p id="demo-key-description" class="section-description">
-        @if (demo()) {
-          Не подходит для подключения к backend.
-        }
+      <p id="api-key-description" class="section-description">
         Ключ показан только в результате создания; после закрытия его нельзя получить из списка.
       </p>
       <div class="customer-actions">
@@ -56,7 +51,6 @@ import { CreatedCustomer } from './customers-source';
   `,
 })
 export class CustomerReceipt {
-  readonly demo = input(true);
   readonly receipt = input.required<CreatedCustomer>();
   readonly closed = output<void>();
   protected readonly copyState = signal<'idle' | 'copying' | 'copied' | 'error'>('idle');

@@ -9,15 +9,13 @@ import { reportNavigation } from '../reports/report-navigation';
 import { adminOperationError } from '../connection/admin-operation-error';
 import { AdminStream, AdminStreamsSource } from './admin-streams-source';
 import { StreamForm, StreamFormValue } from './stream-form';
-import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
 
 @Component({
   selector: 'app-new-stream-page',
-  imports: [ReportShell, RouterLink, StreamForm, DemoAdminStreamsControls],
+  imports: [ReportShell, RouterLink, StreamForm],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-report-shell
-      [demo]="navigation.demo"
       role="team"
       activeSection="streams"
       [organizationName]="organization()?.name ?? organizationId()"
@@ -54,32 +52,25 @@ import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
       } @else {
         @if (baseStream(); as base) {
           <p class="info-note">
-            На основе «{{ base.name }}». Выберите файлы заново: база знаний и
-            включённые словари обязательны. Сведения о прежних материалах не заменяют файлы. Старые
-            настройки и история останутся под прежним ID.
+            На основе «{{ base.name }}». Выберите файлы заново: база знаний и включённые словари
+            обязательны. Сведения о прежних материалах не заменяют файлы. Старые настройки и история
+            останутся под прежним ID.
           </p>
         }
         <app-stream-form
           [initialConfiguration]="baseStream()"
           [initialWhisperPrompt]="defaultWhisperPrompt()"
-          [demo]="navigation.demo"
           [locked]="creating()"
           [requestError]="error()"
           (submitted)="create($event)"
         />
-        @if (navigation.demo) {
-          <app-demo-admin-streams-controls operation="create" [locked]="creating()" />
-        }
       }
     </app-report-shell>
   `,
 })
 export class NewStreamPage {
   private readonly customers = inject(CustomersSource);
-  protected readonly navigation = reportNavigation(
-    'team',
-    inject(ActivatedRoute).snapshot.data['mode'] === 'rest',
-  );
+  protected readonly navigation = reportNavigation('team');
   private readonly source = inject(AdminStreamsSource);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -150,11 +141,7 @@ export class NewStreamPage {
         error: (error) => {
           if (version !== this.contextVersion) return;
           this.creating.set(false);
-          this.error.set(
-            this.navigation.demo
-              ? 'Не удалось создать стрим. Настройки и выбранные файлы сохранены; повторите попытку.'
-              : adminOperationError(error),
-          );
+          this.error.set(adminOperationError(error));
         },
       });
   }

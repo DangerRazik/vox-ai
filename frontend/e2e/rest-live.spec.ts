@@ -134,7 +134,7 @@ test('живой backend: вход, чтение, изоляция и роль �
     await page.reload();
     await expect(page.getByRole('table')).toContainText(upload);
     await page.screenshot({ path: testInfo.outputPath('rest-batches.png'), fullPage: true });
-    await page.getByRole('link', { name: '≋ Стримы', exact: true }).click();
+    await page.getByRole('link', { name: 'Стримы', exact: true }).click();
     await expect(page.locator('article')).toContainText('Живой стрим');
     await page.getByText('Критерии оценки · 11', { exact: true }).click();
     await expect(page.getByRole('listitem')).toHaveCount(11);

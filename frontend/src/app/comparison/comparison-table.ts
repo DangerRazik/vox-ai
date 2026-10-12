@@ -74,7 +74,7 @@ import { ComparisonColumn } from './comparison-models';
 })
 export class ComparisonTable {
   readonly columns = input.required<readonly ComparisonColumn[]>();
-  readonly batchesPath = input<readonly string[]>(['/demo/customer/batches']);
+  readonly batchesPath = input<readonly string[]>(['/customer/batches']);
   protected reportLink(batchId: string): string[] {
     return [...this.batchesPath(), batchId, 'report'];
   }

@@ -54,7 +54,6 @@ const openStatuses = new Set(['uploading', 'upload_failed', 'restoring', 'batch_
         <p role="alert">Не удалось загрузить стримы.</p>
         <button class="button secondary" (click)="load()">Повторить</button>
       } @else {
-
         @if (resumed() && !closed() && !result()) {
           <p class="info-note">
             Продолжаем прежнюю загрузку. Файлы после обновления страницы нужно выбрать заново;
@@ -62,7 +61,7 @@ const openStatuses = new Set(['uploading', 'upload_failed', 'restoring', 'batch_
           </p>
         }
         @if (result(); as intake) {
-          <app-upload-result [result]="intake" [demo]="false" />
+          <app-upload-result [result]="intake" />
         }
         @if (error() && !fieldError()) {
           <div class="upload-error" role="alert">
@@ -88,7 +87,6 @@ const openStatuses = new Set(['uploading', 'upload_failed', 'restoring', 'batch_
               [streams]="streams()"
               [initialStreamId]="streamId()"
               [fixedStream]="draftSaved()"
-              [demo]="false"
               [serverError]="fieldError()"
               (edited)="fieldError.set(null); error.set('')"
               submitLabel="Загрузить"
@@ -118,10 +116,12 @@ const openStatuses = new Set(['uploading', 'upload_failed', 'restoring', 'batch_
             }
           </div>
         }
-        <app-technical-details [ids]="[
-          { label: 'ID загрузки', value: uploadId(), testId: 'upload-id' },
-          { label: 'ID стрима', value: streamId() }
-        ]" />
+        <app-technical-details
+          [ids]="[
+            { label: 'ID загрузки', value: uploadId(), testId: 'upload-id' },
+            { label: 'ID стрима', value: streamId() },
+          ]"
+        />
       }
     </app-workspace-shell>
   `,

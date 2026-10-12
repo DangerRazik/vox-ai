@@ -1,6 +1,5 @@
 <app-report-shell
   [role]="role"
-  [demo]="navigation.demo"
   [organizationName]="organizationName()"
   [listQueryParams]="listQueryParams()"
 >
@@ -15,12 +14,8 @@
     >
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          {{ report.organization.name }} · {{ report.stream.name }}
-        </p>
         <h1>Сводный отчёт</h1>
-        <p class="page-description">{{ report.batch.name }} · {{ report.batch.filename }}</p>
-        <p class="report-publication">Завершён · результаты всего батча опубликованы</p>
+        <p class="page-description">{{ report.batch.name }}</p>
       </div>
       @if (role === 'customer') {
         <a
@@ -40,10 +35,6 @@
     <app-criterion-chart [summary]="report.summary" />
     <section class="report-section" aria-labelledby="calls-title">
       <h2 id="calls-title">Звонки батча</h2>
-      <p class="section-description">
-        Все {{ report.summary.acceptedCalls }} принятых записей. Средние рассчитаны по
-        {{ report.summary.successfulCalls }} успешным.
-      </p>
       <div class="report-table-panel">
         <div class="table-scroll" role="region" aria-label="Таблица звонков" tabindex="0">
           <table>
@@ -108,14 +99,13 @@
         </div>
       </div>
     </section>
-    <app-technical-details [ids]="[
-      { label: 'ID батча', value: report.batch.id },
-      { label: 'ID стрима', value: report.stream.id },
-      { label: 'ID загрузки', value: report.batch.uploadId }
-    ]" />
-    @if (navigation.demo) {
-      <app-demo-state-controls scenario="report" (reloadRequested)="reload()" />
-    }
+    <app-technical-details
+      [ids]="[
+        { label: 'ID батча', value: report.batch.id },
+        { label: 'ID стрима', value: report.stream.id },
+        { label: 'ID загрузки', value: report.batch.uploadId },
+      ]"
+    />
   } @else {
     <a class="back-link" [routerLink]="navigation.batches" [queryParams]="listQueryParams()"
       >← К батчам</a

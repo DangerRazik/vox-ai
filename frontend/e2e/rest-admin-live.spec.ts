@@ -99,7 +99,7 @@ test('живой admin: заказчик, снимок, копия, повтор
     await page.getByRole('button', { name: 'Закрыть результат', exact: true }).click();
     await page.reload();
     await expect(page.getByLabel('API-ключ заказчика', { exact: true })).toHaveCount(0);
-    await page.getByRole('link', { name: '≋ Стримы', exact: true }).click();
+    await page.getByRole('link', { name: 'Стримы', exact: true }).click();
     await page.getByRole('link', { name: 'Создать стрим', exact: true }).click();
     await page.getByLabel('Название стрима', { exact: true }).fill('Правила приёмки');
     const defaultsResponse = await request.get(target + '/v1/admin/stream-defaults', {
@@ -136,7 +136,7 @@ test('живой admin: заказчик, снимок, копия, повтор
       buffer: Buffer.from('{"ошпка":"ошибка"}'),
     });
     await page.getByRole('button', { name: 'Создать стрим', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Снимок стрима', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true })).toBeVisible();
     const originalId = new URL(page.url()).pathname.split('/').at(-1)!;
     const original = await (
       await request.get(`${target}/v1/admin/streams/${originalId}`, { headers: admin })
@@ -177,7 +177,7 @@ test('живой admin: заказчик, снимок, копия, повтор
       buffer: Buffer.from('{"ошпка":"ошибка"}'),
     });
     await page.getByRole('button', { name: 'Создать стрим', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Снимок стрима', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true })).toBeVisible();
     const copyId = new URL(page.url()).pathname.split('/').at(-1)!;
     expect(copyId).not.toBe(originalId);
     const archivePath = path.join(root, 'call.zip');

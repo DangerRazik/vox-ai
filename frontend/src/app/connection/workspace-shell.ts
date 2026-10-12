@@ -12,6 +12,7 @@ import { ApiConnection } from './api-connection';
       background: transparent;
       padding: 8px 0;
       font: inherit;
+      font-size: 12px;
     }
     .organization-name {
       overflow-wrap: anywhere;
@@ -45,13 +46,13 @@ import { ApiConnection } from './api-connection';
             [routerLink]="['/', role(), 'batches']"
             [queryParams]="listQueryParams()"
             [attr.aria-current]="section() === 'batches' ? 'page' : null"
-            >▤ Батчи</a
+            >Батчи</a
           >
           <a
             [routerLink]="['/', role(), 'streams']"
             [queryParams]="listQueryParams()"
             [attr.aria-current]="section() === 'streams' ? 'page' : null"
-            >≋ Стримы</a
+            >Стримы</a
           >
           @if (role() === 'team') {
             <a

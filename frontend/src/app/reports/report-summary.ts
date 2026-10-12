@@ -40,16 +40,38 @@ import { formatNumber } from '../shared/formatting';
         <p class="metric-description">Звонки с нарушением среди успешно обработанных</p>
       </section>
     </div>
-    <section class="report-errors" aria-label="Ошибки батча">
-      <p>
-        <strong>Ошибки загрузки: {{ summary().uploadErrors }}</strong>
-        <span>Не входят в {{ summary().acceptedCalls }} принятых записей.</span>
-      </p>
-      <p>
-        <strong>Ошибки обработки: {{ summary().processingErrors }}</strong>
-        <span>Относятся к принятым записям; не входят в средние оценки.</span>
-      </p>
-    </section>
+    @if (summary().uploadErrors || summary().processingErrors) {
+      <section class="report-errors" aria-label="Ошибки батча">
+        @if (summary().uploadErrors) {
+          <div class="report-error-item">
+            <span>Ошибки загрузки: {{ summary().uploadErrors }}</span>
+            <details class="report-error-hint">
+              <summary
+                aria-label="О количестве ошибок загрузки"
+                title="О количестве ошибок загрузки"
+              >
+                ⓘ
+              </summary>
+              <p>Не входят в {{ summary().acceptedCalls }} принятых записей.</p>
+            </details>
+          </div>
+        }
+        @if (summary().processingErrors) {
+          <div class="report-error-item">
+            <span>Ошибки обработки: {{ summary().processingErrors }}</span>
+            <details class="report-error-hint">
+              <summary
+                aria-label="О количестве ошибок обработки"
+                title="О количестве ошибок обработки"
+              >
+                ⓘ
+              </summary>
+              <p>Относятся к принятым записям; не входят в средние оценки.</p>
+            </details>
+          </div>
+        }
+      </section>
+    }
   `,
 })
 export class ReportSummary {

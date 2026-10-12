@@ -107,3 +107,21 @@ describe('Показатели сводного отчёта', () => {
     expect(element.textContent).toContain('Ошибки обработки: 10');
   });
 });
+
+it('при отсутствии ошибок скрывает сведения об ошибках', async () => {
+  const element = await render({ ...sample, uploadErrors: 0, processingErrors: 0 });
+  expect(element.textContent).not.toContain('Ошибок загрузки и обработки нет');
+  expect(element.querySelector('.report-errors')).toBeNull();
+  expect(element.querySelector('details')).toBeNull();
+});
+
+it('показывает только ненулевой счётчик и раскрываемое пояснение', async () => {
+  const element = await render(sample);
+  expect(element.textContent).toContain('Ошибки загрузки: 2');
+  expect(element.textContent).not.toContain('Ошибки обработки: 0');
+  const hint = element.querySelector('details')!;
+  expect(hint.open).toBe(false);
+  hint.querySelector('summary')!.click();
+  expect(hint.open).toBe(true);
+  expect(hint.textContent).toContain('Не входят в 1 принятых записей');
+});

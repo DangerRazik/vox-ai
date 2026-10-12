@@ -1,13 +1,11 @@
 <app-report-shell
   role="customer"
-  [demo]="navigation.demo"
   activeSection="comparison"
   [organizationName]="catalog()?.organization?.name ?? ''"
   [listQueryParams]="listQuery()"
 >
   <div class="page-heading">
     <div>
-      <p class="eyebrow">{{ catalog()?.organization?.name }} · {{ catalog()?.stream?.name }}</p>
       <h1>Сравнение батчей</h1>
       <p class="page-description">Опубликованные результаты по одинаковым правилам</p>
     </div>
@@ -110,14 +108,5 @@
     </div>
   } @else {
     <div class="state-panel" role="status"><h2>Загружаем завершённые батчи…</h2></div>
-  }
-  @if (navigation.demo) {
-    <app-demo-state-controls
-      scenario="comparison"
-      [locked]="
-        catalogState() !== 'ready' || selectedIds().length < 2 || tableState().kind === 'loading'
-      "
-      (reloadRequested)="compare()"
-    />
   }
 </app-report-shell>

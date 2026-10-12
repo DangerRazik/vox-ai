@@ -1,26 +1,15 @@
-<app-report-shell
-  [demo]="navigation.demo"
-  role="team"
-  activeSection="customers"
-  organizationName="Все заказчики"
->
+<app-report-shell role="team" activeSection="customers" organizationName="Все заказчики">
   <div class="page-heading">
     <div>
       <h1>Заказчики</h1>
-      <p class="page-description">
-        Организации и выдача {{ navigation.demo ? 'условного ключа' : 'API-ключа' }} при создании
-      </p>
     </div>
   </div>
   @if (created(); as receipt) {
-    <app-customer-receipt [receipt]="receipt" [demo]="navigation.demo" (closed)="closeReceipt()" />
+    <app-customer-receipt [receipt]="receipt" (closed)="closeReceipt()" />
   } @else {
     <section class="customer-panel" aria-labelledby="new-customer-title">
       <h2 id="new-customer-title">Создать заказчика</h2>
       <p class="section-description">
-        @if (navigation.demo) {
-          Новая организация сохраняется в демо до перезагрузки страницы.
-        }
         Ключ виден только в результате создания. Сохраните его перед закрытием.
       </p>
       <app-customer-form
@@ -67,7 +56,6 @@
                 <thead>
                   <tr>
                     <th scope="col">Название</th>
-                    <th scope="col">ID</th>
                     <th scope="col">Действие</th>
                   </tr>
                 </thead>
@@ -75,7 +63,6 @@
                   @for (customer of list.customers; track customer.id) {
                     <tr>
                       <th scope="row">{{ customer.name }}</th>
-                      <td class="customer-id">{{ customer.id }}</td>
                       <td>
                         <a
                           [routerLink]="navigation.batches"
@@ -93,10 +80,4 @@
       }
     }
   </section>
-  @if (navigation.demo) {
-    <app-demo-customers-controls
-      [locked]="creating() || state().kind === 'loading'"
-      (reloadRequested)="reload()"
-    />
-  }
 </app-report-shell>

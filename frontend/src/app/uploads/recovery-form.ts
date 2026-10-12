@@ -10,23 +10,16 @@ import { UploadFiles, UploadFieldError } from './upload-models';
   template: `
     <section class="upload-panel batch-details" aria-label="Повторная загрузка">
       <h2>{{ initialImport() ? 'Повтор первичного импорта' : 'Восстановление батча' }}</h2>
-      @if (demo()) {
-        <p class="info-note">
-          Локальная имитация. ZIP не распаковывается и файлы никуда не отправляются. Состав
-          проверяется условно; результат сценария не описывает выбранный архив.
-        </p>
-      }
-      <p>
-        {{
-          initialImport()
-            ? 'Состав ещё не закрыт. Исправленный архив импортируется в тот же батч с прежним ID загрузки.'
-            : 'Передайте весь исходный набор уникальных записей. ZIP можно упаковать заново; важен состав по содержимому, а не имя или байты архива.'
-        }}
-      </p>
-      <p>
-        Стрим и идентификатор загрузки сохраняются.
+
+      <p class="scope-note">
         @if (initialImport()) {
-          Для продолжения частичного импорта передайте тот же ZIP с тем же составом записей.
+          @if (details().batch.acceptedCalls) {
+            Для продолжения загрузки выберите тот же ZIP. Принятые записи сохраняются.
+          } @else {
+            Выберите исправленный ZIP и повторите загрузку в этот батч.
+          }
+        } @else {
+          Выберите ZIP со всем исходным набором записей. Архив можно упаковать заново.
         }
       </p>
       @if (error()) {
@@ -34,21 +27,13 @@ import { UploadFiles, UploadFieldError } from './upload-models';
       }
       <app-zip-upload-form
         [streams]="[details().stream]"
-        [demo]="demo()"
         [serverError]="serverError()"
         (edited)="edited.emit()"
         [initialStreamId]="details().stream.id"
         [fixedStream]="true"
+        [showStream]="false"
         [locked]="locked()"
-        [submitLabel]="
-          demo()
-            ? initialImport()
-              ? 'Имитировать повтор импорта'
-              : 'Имитировать восстановление'
-            : initialImport()
-              ? 'Повторить импорт'
-              : 'Восстановить'
-        "
+        [submitLabel]="initialImport() ? 'Повторить импорт' : 'Восстановить'"
         (submitted)="submitted.emit($event)"
       />
       <ng-content />
@@ -58,7 +43,6 @@ import { UploadFiles, UploadFieldError } from './upload-models';
 export class RecoveryForm {
   readonly serverError = input<UploadFieldError | null>(null);
   readonly edited = output<void>();
-  readonly demo = input(true);
   readonly details = input.required<BatchDetails>();
   readonly locked = input(false);
   readonly error = input('');

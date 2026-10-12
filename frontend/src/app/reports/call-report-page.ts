@@ -9,10 +9,9 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, combineLatest, map, of, startWith, Subject, switchMap } from 'rxjs';
-import { DemoRole, Organization } from '../batches/batch-models';
+import { AccessRole, Organization } from '../batches/batch-models';
 import { ReportsSource } from './reports-source';
 import { reportNavigation } from './report-navigation';
-import { DemoStateControls } from '../batches/demo-state-controls';
 import { ReportShell } from '../shared/report-shell';
 import { formatBoundary, formatDateTime, formatNumber } from '../shared/formatting';
 import { CallReportResult } from './report-models';
@@ -23,7 +22,7 @@ import { SPEAKER_LABELS } from './speaker-roles';
 type CallState = CallReportResult | { readonly kind: 'loading' | 'error' };
 @Component({
   selector: 'app-call-report-page',
-  imports: [RouterLink, ReportShell, CallGrades, DemoStateControls, ReportBlock],
+  imports: [RouterLink, ReportShell, CallGrades, ReportBlock],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './call-report-page.html',
 })
@@ -31,11 +30,8 @@ export class CallReportPage {
   private readonly route = inject(ActivatedRoute);
   private readonly source = inject(ReportsSource);
   private readonly destroyRef = inject(DestroyRef);
-  protected readonly role = this.route.snapshot.data['role'] as DemoRole;
-  protected readonly navigation = reportNavigation(
-    this.role,
-    this.route.snapshot.data['mode'] === 'rest',
-  );
+  protected readonly role = this.route.snapshot.data['role'] as AccessRole;
+  protected readonly navigation = reportNavigation(this.role);
   protected readonly state = signal<CallState>({ kind: 'loading' });
   private readonly context = signal<{
     key: string;

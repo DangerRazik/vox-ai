@@ -25,19 +25,12 @@ import { ChangeDetectionStrategy, Component, input, OnInit, signal } from '@angu
 export class ReportBlock implements OnInit {
   readonly title = input.required<string>();
   readonly preferenceKey = input.required<string>();
-  protected readonly expanded = signal(true);
+  readonly defaultExpanded = input(false);
+  protected readonly expanded = signal(false);
   ngOnInit(): void {
-    try {
-      this.expanded.set(localStorage.getItem(this.storageKey()) !== 'collapsed');
-    } catch {}
+    this.expanded.set(this.defaultExpanded());
   }
   protected toggle(): void {
     this.expanded.update((value) => !value);
-    try {
-      localStorage.setItem(this.storageKey(), this.expanded() ? 'expanded' : 'collapsed');
-    } catch {}
-  }
-  private storageKey(): string {
-    return 'vox.report-block.' + this.preferenceKey();
   }
 }

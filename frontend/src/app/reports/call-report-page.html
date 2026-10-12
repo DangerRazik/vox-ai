@@ -1,6 +1,5 @@
 <app-report-shell
   [role]="role"
-  [demo]="navigation.demo"
   [organizationName]="organizationName()"
   [listQueryParams]="listQueryParams()"
 >
@@ -10,9 +9,6 @@
     @let report = current.report;
     <div class="page-heading">
       <div>
-        <p class="eyebrow">
-          {{ report.organization.name }} · {{ report.batch.name }} · {{ report.stream.name }}
-        </p>
         <h1>Разбор звонка</h1>
         <p class="call-record-name">{{ report.call.filename }}</p>
         <p class="page-description">Сотрудник: {{ report.call.employeeId ?? 'Не указан' }}</p>
@@ -127,9 +123,6 @@
       </div>
     } @else {
       <p class="section-description">Данные анализа отсутствуют.</p>
-    }
-    @if (navigation.demo) {
-      <app-demo-state-controls scenario="call" (reloadRequested)="reload()" />
     }
   } @else {
     <section

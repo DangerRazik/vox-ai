@@ -1,9 +1,9 @@
+import { AccessRole } from '../batches/batch-models';
 import { HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, of, switchMap, throwError } from 'rxjs';
 import { BatchDetailsSource } from '../batches/batch-details-source';
 import { BatchDetailsResult } from '../batches/batch-details';
-import { DemoRole } from '../batches/batch-models';
 import {
   RestoreRequest,
   RestoreResult,
@@ -98,7 +98,7 @@ function intakeFromRest(dto: ArchiveDto): UploadResult {
 @Injectable({ providedIn: 'root' })
 export class RestBatchDetailsSource extends BatchDetailsSource {
   private readonly connection = inject(ApiConnection);
-  batchDetails(_role: DemoRole, batchId: string): Observable<BatchDetailsResult> {
+  batchDetails(_role: AccessRole, batchId: string): Observable<BatchDetailsResult> {
     const path = `/batches/${encodeURIComponent(batchId)}`;
     return this.connection.get<BatchStateDto>(path).pipe(
       switchMap((batch) =>

@@ -133,7 +133,7 @@ test('команда создаёт реальный стрим с полным 
   });
   await page.route('**/api/v1/admin/streams/s2', (r) => r.fulfill({ json: snapshot('s2') }));
   await adminLogin(page);
-  await page.getByRole('link', { name: '≋ Стримы', exact: true }).click();
+  await page.getByRole('link', { name: 'Стримы', exact: true }).click();
   await page.getByRole('link', { name: 'Создать стрим', exact: true }).click();
   await page.getByLabel('Название стрима', { exact: true }).fill('Правила');
   await fillProcessing(page);
@@ -144,7 +144,9 @@ test('команда создаёт реальный стрим с полным 
     .setInputFiles({ name: 'kb.txt', mimeType: 'text/plain', buffer: Buffer.from('Правила') });
   await page.getByRole('button', { name: 'Создать стрим', exact: true }).click();
   await expect(page).toHaveURL(/\/team\/streams\/s2\?organization=o1$/);
-  await expect(page.locator('body')).toContainText('Снимок стрима');
+  await expect(
+    page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true }),
+  ).toBeVisible();
   await expect(page.locator('body')).not.toContainText('Роли {fragments}');
   await expect(page.locator('body')).not.toContainText('{checklist}{kb}{metrics}{dialog}');
   await expect(page.locator('body')).not.toContainText('Демо проверяет');
@@ -293,7 +295,9 @@ for (const status of [409, 403])
       status === 409 ? 'Стрим занят' : 'Недостаточно прав',
     );
     await dialog.getByRole('button', { name: 'Отмена', exact: true }).click();
-    await expect(page.locator('body')).toContainText('Снимок стрима');
+    await expect(
+      page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true }),
+    ).toBeVisible();
     await expect(page.locator('body')).not.toContainText('Стрим удалён');
     expect(requests).toBe(1);
   });
@@ -315,10 +319,14 @@ test('успешное удаление очищает снимок после �
   await expect(
     page.getByRole('dialog').getByRole('button', { name: 'Отмена', exact: true }),
   ).toBeDisabled();
-  await expect(page.locator('body')).toContainText('Снимок стрима');
+  await expect(
+    page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true }),
+  ).toBeVisible();
   finish();
   await expect(page.getByRole('heading', { name: 'Стрим удалён', exact: true })).toBeVisible();
-  await expect(page.locator('body')).not.toContainText('Снимок стрима');
+  await expect(
+    page.getByRole('heading', { name: '1. Транскрибация через Whisper', exact: true }),
+  ).toHaveCount(0);
 });
 for (const code of [403, 409])
   test(`отказ запуска ${code} показывает серверные права или актуальное состояние`, async ({

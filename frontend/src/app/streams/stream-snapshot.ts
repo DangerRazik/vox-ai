@@ -12,7 +12,7 @@ import { formatFileSize } from '../shared/formatting';
     <section aria-labelledby="snapshot-title" class="stream-snapshot">
       <header class="snapshot-heading">
         <h2 id="snapshot-title">{{ stream().name }}</h2>
-
+        <ng-content select="[snapshot-action]" />
       </header>
       <section class="stream-card">
         <h3>1. Транскрибация через Whisper</h3>

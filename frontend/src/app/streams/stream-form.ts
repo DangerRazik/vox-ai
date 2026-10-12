@@ -23,7 +23,6 @@ type MaterialField = 'knowledgeBase' | 'unwantedExpressions' | 'textCorrections'
   templateUrl: './stream-form.html',
 })
 export class StreamForm implements OnInit {
-  readonly demo = input(true);
   readonly locked = input(false);
   readonly initialWhisperPrompt = input('');
   readonly initialConfiguration = input<StreamConfiguration | null>(null);
@@ -100,8 +99,6 @@ export class StreamForm implements OnInit {
     const materials = this.materials();
     const errors: Record<string, string> = {};
     if (!config.name.trim()) errors['name'] = 'Укажите название стрима.';
-    if (this.demo() && !config.whisperPrompt.trim())
-      errors['whisperPrompt'] = 'Заполните промпт Whisper.';
     if (!materials.knowledgeBase?.size)
       errors['knowledgeBase'] = 'Приложите непустой файл базы знаний.';
     if (config.options.unwantedExpressions && !materials.unwantedExpressions?.size)
@@ -110,12 +107,10 @@ export class StreamForm implements OnInit {
     if (config.options.textCorrections && !materials.textCorrections?.size)
       errors['textCorrections'] =
         'Приложите непустой словарь корректировки текста или выключите опцию.';
-    if (!this.demo()) {
-      for (const field of this.processingFields) {
-        const value = this.processing()[field.key];
-        if (!Number.isFinite(value) || value < 0)
-          errors[field.key] = 'Укажите неотрицательное число.';
-      }
+    for (const field of this.processingFields) {
+      const value = this.processing()[field.key];
+      if (!Number.isFinite(value) || value < 0)
+        errors[field.key] = 'Укажите неотрицательное число.';
     }
     this.errors.set(errors);
     if (Object.keys(errors).length) {
@@ -128,7 +123,7 @@ export class StreamForm implements OnInit {
       ...config,
       enabledCriteria: CRITERIA.map((c) => c.id),
       options: { ...config.options },
-      ...(!this.demo() ? { processing: { ...this.processing() } } : {}),
+      processing: { ...this.processing() },
       name: config.name.trim(),
       whisperPrompt: config.whisperPrompt.trim(),
       llmPrompt: config.llmPrompt.trim(),

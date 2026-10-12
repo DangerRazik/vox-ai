@@ -17,7 +17,6 @@ import { Batch, BatchQuery, Organization, Stream } from '../batches/batch-models
 import { BatchesCatalog } from '../batches/batches-catalog';
 import { ReportsSource } from '../reports/reports-source';
 import { reportNavigation } from '../reports/report-navigation';
-import { DemoStateControls } from '../batches/demo-state-controls';
 import { ReportShell } from '../shared/report-shell';
 import { ComparisonResult } from './comparison-models';
 import { ComparisonTable } from './comparison-table';
@@ -32,7 +31,7 @@ type TableState = ComparisonResult | { kind: 'idle' | 'loading' | 'error' };
 
 @Component({
   selector: 'app-comparison-page',
-  imports: [ReportShell, ComparisonTable, DemoStateControls],
+  imports: [ReportShell, ComparisonTable],
   templateUrl: './comparison-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -40,10 +39,7 @@ export class ComparisonPage {
   private readonly source = inject(BatchesCatalog);
   private readonly route = inject(ActivatedRoute);
   private readonly reports = inject(ReportsSource);
-  protected readonly navigation = reportNavigation(
-    'customer',
-    this.route.snapshot.data['mode'] === 'rest',
-  );
+  protected readonly navigation = reportNavigation('customer');
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly resultPanel = viewChild<ElementRef<HTMLElement>>('resultPanel');

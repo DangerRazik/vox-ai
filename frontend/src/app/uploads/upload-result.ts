@@ -13,43 +13,40 @@ import { UploadResult } from './upload-models';
   selector: 'app-upload-result',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="upload-result" aria-label="Результаты приёма" aria-live="polite">
-      <h2 #heading tabindex="-1">
-        {{ demo() ? 'Результаты демонстрационного приёма' : 'Результаты приёма' }}
-      </h2>
-      @if (demo()) {
-        <p>Условные файлы сценария; это не анализ выбранного архива.</p>
+    <section
+      [class]="compact() ? 'intake-summary' : 'upload-result'"
+      aria-label="Результаты приёма"
+      aria-live="polite"
+    >
+      @if (!compact()) {
+        <h2 #heading tabindex="-1">Результаты приёма</h2>
       }
+
       <div class="intake-counts">
         <p>Принято уникальных записей: {{ result().accepted.length }}</p>
         <p>Дубликаты: {{ result().duplicates.length }}</p>
         <p>Ошибки файлов: {{ result().errors.length }}</p>
       </div>
-      @if (result().duplicates.length) {
+      @if (!compact() && result().duplicates.length) {
         <p>Дубликаты не входят в принятые записи и ошибки файлов.</p>
       }
-      @if (!demo() && result().batch.status === 'upload_failed') {
-        <div class="upload-error" role="alert">
-          <h3>ZIP не принят</h3>
-          <p>
-            Проверьте ошибки ниже, выберите исправленный ZIP и повторите загрузку. Идентификатор и
-            стрим сохранены.
+      @if (!compact()) {
+        @if (result().batch.status === 'upload_failed') {
+          <div class="upload-error" role="alert">
+            <h3>ZIP не принят</h3>
+            <p>
+              Проверьте ошибки ниже, выберите исправленный ZIP и повторите загрузку. Идентификатор и
+              стрим сохранены.
+            </p>
+          </div>
+        } @else {
+          <p class="info-note">
+            {{ messages[result().batch.status] }}
+            @if (result().errors.length && result().accepted.length) {
+              Частичные ошибки не отменяют приём остальных записей.
+            }
           </p>
-        </div>
-      } @else if (!demo()) {
-        <p class="info-note">
-          {{ messages[result().batch.status] }}
-          @if (result().errors.length && result().accepted.length) {
-            Частичные ошибки не отменяют приём остальных записей.
-          }
-        </p>
-      } @else if (result().accepted.length) {
-        <p class="info-note">
-          Ожидает ручного запуска командой Vox AI. Частичные ошибки не отменяют приём остальных
-          записей.
-        </p>
-      } @else {
-        <p class="field-error">Ни одной записи не принято. Батч не готов к запуску.</p>
+        }
       }
       <ul class="intake-files">
         @for (file of result().accepted; track $index) {
@@ -72,11 +69,11 @@ import { UploadResult } from './upload-models';
   `,
 })
 export class UploadIntakeResult {
-  readonly demo = input(true);
   protected readonly messages = BATCH_STATE_MESSAGES;
   readonly result = input.required<UploadResult>();
-  private readonly heading = viewChild.required<ElementRef<HTMLHeadingElement>>('heading');
+  readonly compact = input(false);
+  private readonly heading = viewChild<ElementRef<HTMLHeadingElement>>('heading');
   constructor() {
-    afterNextRender(() => this.heading().nativeElement.focus());
+    afterNextRender(() => this.heading()?.nativeElement.focus());
   }
 }

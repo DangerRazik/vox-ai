@@ -2,13 +2,7 @@ import { HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map, of, switchMap } from 'rxjs';
 import { BatchesCatalog } from '../batches/batches-catalog';
-import {
-  Batch,
-  BatchQuery,
-  BATCH_STATUSES,
-  DemoRole,
-  DemoWorkspace,
-} from '../batches/batch-models';
+import { Batch, BatchQuery, BATCH_STATUSES, AccessRole, Workspace } from '../batches/batch-models';
 import { PublicStream, PublicStreams, PublicStreamsSource } from '../streams/public-streams-source';
 import { CriterionId } from '../reports/report-models';
 import { ApiConnection } from './api-connection';
@@ -71,7 +65,7 @@ export class RestPublicStreamsSource extends PublicStreamsSource {
 export class RestBatchesCatalog extends BatchesCatalog {
   private readonly connection = inject(ApiConnection);
   private readonly publicStreams = inject(RestPublicStreamsSource);
-  workspace(_role: DemoRole): Observable<DemoWorkspace> {
+  workspace(_role: AccessRole): Observable<Workspace> {
     const access = this.connection.access()!;
     if (access.organization) return of({ role: access.role, organizations: [access.organization] });
     return this.connection.get<{ items: CustomerDto[] }>('/admin/customers').pipe(

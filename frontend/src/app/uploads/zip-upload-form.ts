@@ -19,25 +19,27 @@ import { UploadFiles, UploadFieldError } from './upload-models';
     <form (submit)="submit($event)" novalidate>
       <fieldset class="upload-fields" [disabled]="locked()">
         <legend class="sr-only">Файлы загрузки</legend>
-        <div class="field">
-          <label for="upload-stream">Стрим</label>
-          <select
-            id="upload-stream"
-            #stream
-            (change)="streamId.set(stream.value)"
-            [attr.aria-invalid]="streamError() ? true : null"
-            aria-describedby="stream-error"
-            [disabled]="fixedStream()"
-          >
-            <option value="" [selected]="!selectedStream()">Выберите стрим</option>
-            @for (item of streams(); track item.id) {
-              <option [value]="item.id" [selected]="item.id === selectedStream()">
-                {{ item.name }}
-              </option>
-            }
-          </select>
-          <p id="stream-error" class="field-error" role="alert">{{ streamError() }}</p>
-        </div>
+        @if (showStream()) {
+          <div class="field">
+            <label for="upload-stream">Стрим</label>
+            <select
+              id="upload-stream"
+              #stream
+              (change)="streamId.set(stream.value)"
+              [attr.aria-invalid]="streamError() ? true : null"
+              aria-describedby="stream-error"
+              [disabled]="fixedStream()"
+            >
+              <option value="" [selected]="!selectedStream()">Выберите стрим</option>
+              @for (item of streams(); track item.id) {
+                <option [value]="item.id" [selected]="item.id === selectedStream()">
+                  {{ item.name }}
+                </option>
+              }
+            </select>
+            <p id="stream-error" class="field-error" role="alert">{{ streamError() }}</p>
+          </div>
+        }
         <div class="field">
           <label for="upload-archive">Загрузить ZIP</label>
           <input
@@ -46,16 +48,8 @@ import { UploadFiles, UploadFieldError } from './upload-models';
             accept=".zip"
             (change)="chooseArchive($event)"
             [attr.aria-invalid]="archiveMessage() ? true : null"
-            aria-describedby="archive-hint archive-error"
+            aria-describedby="archive-error"
           />
-          <p id="archive-hint" class="scope-note">
-            Выберите ZIP.
-            {{
-              demo()
-                ? 'В демо содержимое и наличие пароля не проверяются.'
-                : 'Содержимое проверяется сервером.'
-            }}
-          </p>
           <p id="archive-error" class="field-error" role="alert">{{ archiveMessage() }}</p>
         </div>
         <button class="button primary" type="submit">
@@ -68,12 +62,12 @@ import { UploadFiles, UploadFieldError } from './upload-models';
 export class ZipUploadForm {
   readonly serverError = input<UploadFieldError | null>(null);
   readonly edited = output<void>();
-  readonly demo = input(true);
   readonly streams = input.required<readonly Stream[]>();
   readonly initialStreamId = input('');
   readonly locked = input(false);
   readonly fixedStream = input(false);
-  readonly submitLabel = input('Имитировать приём');
+  readonly showStream = input(true);
+  readonly submitLabel = input('Загрузить');
   readonly focusOnReady = input(false);
   private readonly streamElement = viewChild<ElementRef<HTMLSelectElement>>('stream');
   readonly submitted = output<UploadFiles>();

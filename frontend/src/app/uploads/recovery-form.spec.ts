@@ -46,17 +46,14 @@ async function render(context = details) {
 describe('Форма повторной загрузки', () => {
   it('сохраняет исходный стрим и требует ZIP', async () => {
     const form = await render();
-    const stream = form.element.querySelector<HTMLSelectElement>('#upload-stream')!;
-    expect(stream.disabled).toBe(true);
-    expect(stream.value).toBe('incoming');
+    expect(form.element.querySelector('#upload-stream')).toBeNull();
     await form.submit();
     expect(form.submissions).toHaveLength(0);
     expect(form.element.textContent).toContain('Выберите ZIP-файл');
-    expect(form.element.textContent).toContain('Состав проверяется условно');
   });
   it('показывает конфликт и сохраняет выбранный ZIP для исправления и следующей передачи', async () => {
     const form = await render();
-    const archive = new File(['demo'], 'repacked.zip');
+    const archive = new File(['test'], 'repacked.zip');
     await form.choose(archive);
     await form.submit();
     form.fixture.componentRef.setInput('error', 'Переданы не все исходные записи');
@@ -82,15 +79,15 @@ describe('Форма повторной загрузки', () => {
       recovery: null,
     });
     expect(form.element.textContent).toContain('Повтор первичного импорта');
-    expect(form.element.textContent).toContain('Состав ещё не закрыт');
+    expect(form.element.textContent).toContain('Выберите исправленный ZIP');
     expect(form.element.textContent).not.toContain('Передайте весь исходный набор');
     expect(
       form.element.querySelector<HTMLButtonElement>('button[type=submit]')!.textContent,
-    ).toContain('Имитировать повтор импорта');
+    ).toContain('Повторить импорт');
   });
   it('во время передачи блокирует отправку без сброса файлов', async () => {
     const form = await render();
-    const archive = new File(['demo'], 'original.zip');
+    const archive = new File(['test'], 'original.zip');
     await form.choose(archive);
     form.fixture.componentRef.setInput('locked', true);
     await form.fixture.whenStable();

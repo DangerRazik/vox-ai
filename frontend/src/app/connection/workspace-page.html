@@ -9,13 +9,6 @@
   <div class="page-heading" [class.workspace-batches-heading]="section === 'batches'">
     <div>
       <h1>{{ section === 'batches' ? 'Батчи звонков' : 'Готовые стримы' }}</h1>
-      <p class="page-description">
-        {{
-          section === 'batches'
-            ? 'Загрузки и результаты выбранного стрима'
-            : 'Фиксированные правила анализа звонков'
-        }}
-      </p>
     </div>
     @if (role === 'customer' && section === 'batches' && streams().length) {
       <a

@@ -1,9 +1,8 @@
-import { DemoRole } from '../batches/batch-models';
+import { AccessRole } from '../batches/batch-models';
 
-export function reportNavigation(role: DemoRole, real: boolean) {
-  const base = real ? ['/', role] : ['/demo', role];
+export function reportNavigation(role: AccessRole) {
+  const base = ['/', role];
   return {
-    demo: !real,
     batches: [...base, 'batches'],
     comparison: [...base, 'comparison'],
     customers: [...base, 'customers'],

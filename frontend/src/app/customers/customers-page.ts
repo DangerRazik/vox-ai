@@ -10,21 +10,17 @@ import { adminOperationError } from '../connection/admin-operation-error';
 import { CreatedCustomer, CustomersSource } from './customers-source';
 import { CustomerForm } from './customer-form';
 import { CustomerReceipt } from './customer-receipt';
-import { DemoCustomersControls } from './demo-customers-controls';
 
 type ListState =
   { kind: 'loading' | 'error' } | { kind: 'ready'; customers: readonly Organization[] };
 @Component({
   selector: 'app-customers-page',
-  imports: [RouterLink, ReportShell, CustomerForm, CustomerReceipt, DemoCustomersControls],
+  imports: [RouterLink, ReportShell, CustomerForm, CustomerReceipt],
   templateUrl: './customers-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CustomersPage {
-  protected readonly navigation = reportNavigation(
-    'team',
-    inject(ActivatedRoute).snapshot.data['mode'] === 'rest',
-  );
+  protected readonly navigation = reportNavigation('team');
   private readonly source = inject(CustomersSource);
   private readonly destroyRef = inject(DestroyRef);
   private readonly reads = new Subject<void>();
@@ -72,17 +68,13 @@ export class CustomersPage {
         },
         error: (error) => {
           this.creating.set(false);
-          if (!this.navigation.demo && error instanceof HttpErrorResponse && error.status === 422) {
+          if (error instanceof HttpErrorResponse && error.status === 422) {
             this.createNameError.set(
               'Сервер отклонил название. Укажите непустое имя до 200 символов.',
             );
             return;
           }
-          this.createError.set(
-            this.navigation.demo
-              ? 'Не удалось создать заказчика. Проверьте имя и повторите попытку.'
-              : adminOperationError(error),
-          );
+          this.createError.set(adminOperationError(error));
         },
       });
   }

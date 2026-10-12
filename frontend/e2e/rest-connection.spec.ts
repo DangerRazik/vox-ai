@@ -218,7 +218,7 @@ test('публичные опции, фильтр стрима и статуса
   await expect(page.getByRole('table')).toContainText('ready-upload');
   await page.getByLabel('Стрим', { exact: true }).selectOption('stream-b');
   await expect(page.getByRole('status')).toContainText('Батчи не найдены');
-  await page.getByRole('link', { name: '≋ Стримы', exact: true }).click();
+  await page.getByRole('link', { name: 'Стримы', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Готовые стримы' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Публичные опции' })).toHaveCount(2);
   await page.getByText('Критерии оценки · 11', { exact: true }).first().click();
@@ -284,7 +284,7 @@ test('ключ команды даёт выбор заказчика; поздн
   await expect(page.getByLabel('Стрим', { exact: true })).toContainText('stream-b');
   release();
   await expect(page.getByLabel('Стрим', { exact: true })).not.toContainText('stream-a');
-  await page.getByRole('link', { name: '≋ Стримы', exact: true }).click();
+  await page.getByRole('link', { name: 'Стримы', exact: true }).click();
   await expect(page.getByRole('banner')).toContainText('Заказчик Б');
   await expect(page.locator('article')).toContainText('stream-b');
 });
@@ -415,4 +415,16 @@ test('название загрузки и ссылка на отчёт пока
     'href',
     `/customer/batches/${batchId}/report`,
   );
+});
+
+test('главная и прежние демонстрационные адреса открывают подключение без условных данных', async ({
+  page,
+}) => {
+  for (const path of ['/', '/demo/customer/batches', '/demo/team/streams']) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/connect$/);
+    await expect(page.getByLabel('API-ключ', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Открыть демонстрацию' })).toHaveCount(0);
+    await expect(page.getByRole('table')).toHaveCount(0);
+  }
 });

@@ -41,17 +41,17 @@ describe('Форма ZIP', () => {
   it('показывает только ZIP и не передаёт метаданные', async () => {
     const form = await render();
     expect(form.element.querySelector('#upload-metadata')).toBeNull();
-    const archive = new File(['demo'], 'calls.ZIP');
+    const archive = new File(['test'], 'calls.ZIP');
     await form.choose('#upload-archive', archive);
     await form.submit();
     expect(form.submissions).toEqual([{ streamId: 'incoming', archive, metadata: null }]);
   });
   it('отклоняет другой тип файла и блокирует повторный submit при ожидании', async () => {
     const form = await render();
-    await form.choose('#upload-archive', new File(['demo'], 'calls.mp3'));
+    await form.choose('#upload-archive', new File(['test'], 'calls.mp3'));
     await form.submit();
     expect(form.element.querySelector('#archive-error')!.textContent).toContain('.zip');
-    await form.choose('#upload-archive', new File(['demo'], 'calls.zip'));
+    await form.choose('#upload-archive', new File(['test'], 'calls.zip'));
     form.fixture.componentRef.setInput('locked', true);
     await form.fixture.whenStable();
     await form.submit();

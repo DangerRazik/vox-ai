@@ -12,8 +12,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, combineLatest, map, of, startWith, Subject, switchMap } from 'rxjs';
 import { ReportsSource } from './reports-source';
 import { reportNavigation } from './report-navigation';
-import { DemoRole, Organization } from '../batches/batch-models';
-import { DemoStateControls } from '../batches/demo-state-controls';
+import { AccessRole, Organization } from '../batches/batch-models';
 import { ReportShell } from '../shared/report-shell';
 import { formatNumber } from '../shared/formatting';
 import { BatchReportResult } from './report-models';
@@ -24,7 +23,7 @@ type ReportState = BatchReportResult | { readonly kind: 'loading' | 'error' };
 
 @Component({
   selector: 'app-batch-report-page',
-  imports: [RouterLink, ReportShell, ReportSummary, DemoStateControls, CriterionChart, TechnicalDetails],
+  imports: [RouterLink, ReportShell, ReportSummary, CriterionChart, TechnicalDetails],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './batch-report-page.html',
 })
@@ -32,11 +31,8 @@ export class BatchReportPage {
   private readonly route = inject(ActivatedRoute);
   private readonly source = inject(ReportsSource);
   private readonly destroyRef = inject(DestroyRef);
-  protected readonly role = this.route.snapshot.data['role'] as DemoRole;
-  protected readonly navigation = reportNavigation(
-    this.role,
-    this.route.snapshot.data['mode'] === 'rest',
-  );
+  protected readonly role = this.route.snapshot.data['role'] as AccessRole;
+  protected readonly navigation = reportNavigation(this.role);
   protected readonly state = signal<ReportState>({ kind: 'loading' });
   private readonly context = signal<{
     batchId: string;

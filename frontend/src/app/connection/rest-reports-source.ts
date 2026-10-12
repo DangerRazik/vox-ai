@@ -14,7 +14,7 @@ import {
 } from 'rxjs';
 import { ApiConnection } from './api-connection';
 import { ReportsSource } from '../reports/reports-source';
-import { Batch, BatchQuery, DemoRole, Organization } from '../batches/batch-models';
+import { Batch, BatchQuery, AccessRole, Organization } from '../batches/batch-models';
 import { BatchReportResult, CallReportResult } from '../reports/report-models';
 import { ComparisonResult } from '../comparison/comparison-models';
 import {
@@ -57,7 +57,7 @@ export class RestReportsSource extends ReportsSource {
       ),
     );
   }
-  batchReport(_role: DemoRole, batchId: string): Observable<BatchReportResult> {
+  batchReport(_role: AccessRole, batchId: string): Observable<BatchReportResult> {
     return this.context(batchId).pipe(
       switchMap((context) => {
         if (context.batch.status !== 'completed')
@@ -110,7 +110,7 @@ export class RestReportsSource extends ReportsSource {
       catchError((error) => this.reportFailure<BatchReportResult>(error)),
     );
   }
-  callReport(_role: DemoRole, batchId: string, callId: string): Observable<CallReportResult> {
+  callReport(_role: AccessRole, batchId: string, callId: string): Observable<CallReportResult> {
     return this.context(batchId).pipe(
       switchMap((context) => {
         if (context.batch.status !== 'completed')
@@ -144,7 +144,7 @@ export class RestReportsSource extends ReportsSource {
     );
   }
   compareBatches(
-    _role: DemoRole,
+    _role: AccessRole,
     query: BatchQuery,
     batchIds: readonly string[],
   ): Observable<ComparisonResult> {

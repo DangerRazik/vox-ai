@@ -1,4 +1,4 @@
-export type DemoRole = 'customer' | 'team';
+export type AccessRole = 'customer' | 'team';
 export type BatchStatus =
   | 'uploading'
   | 'ready'
@@ -18,8 +18,8 @@ export interface Stream {
   readonly organizationId: string;
   readonly name: string;
 }
-export interface DemoWorkspace {
-  readonly role: DemoRole;
+export interface Workspace {
+  readonly role: AccessRole;
   readonly organizations: readonly Organization[];
 }
 export interface BatchQuery {

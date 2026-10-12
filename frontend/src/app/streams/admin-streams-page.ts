@@ -7,15 +7,13 @@ import { CustomersSource } from '../customers/customers-source';
 import { ReportShell } from '../shared/report-shell';
 import { reportNavigation } from '../reports/report-navigation';
 import { AdminStream, AdminStreamsSource } from './admin-streams-source';
-import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
 
 @Component({
   selector: 'app-admin-streams-page',
-  imports: [ReportShell, RouterLink, DemoAdminStreamsControls],
+  imports: [ReportShell, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-report-shell
-      [demo]="navigation.demo"
       role="team"
       activeSection="streams"
       [organizationName]="organization()?.name ?? ''"
@@ -24,11 +22,10 @@ import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
       <div class="page-heading">
         <div>
           <h1>Стримы заказчика</h1>
-          <p class="page-description">Фиксированные правила обработки звонков</p>
         </div>
         @if (state() === 'ready' && organization()) {
           <a
-            class="button primary"
+            class="button primary create-stream-button"
             [routerLink]="navigation.newStream"
             [queryParams]="{ organization: organization()!.id }"
             >Создать стрим</a
@@ -72,9 +69,7 @@ import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
             <article class="stream-card">
               <h2>{{ stream.name }}</h2>
 
-              <p class="page-description">
-                Готов к использованию · критериев: {{ stream.criteria.length }}
-              </p>
+              <p class="page-description">Критериев: {{ stream.criteria.length }}</p>
               <a
                 class="button secondary"
                 [routerLink]="navigation.streamDetails(stream.id)"
@@ -85,20 +80,11 @@ import { DemoAdminStreamsControls } from './demo-admin-streams-controls';
           }
         </div>
       }
-      @if (navigation.demo) {
-        <app-demo-admin-streams-controls
-          [locked]="state() === 'loading'"
-          (reloadRequested)="reload()"
-        />
-      }
     </app-report-shell>
   `,
 })
 export class AdminStreamsPage {
-  protected readonly navigation = reportNavigation(
-    'team',
-    inject(ActivatedRoute).snapshot.data['mode'] === 'rest',
-  );
+  protected readonly navigation = reportNavigation('team');
   private readonly source = inject(AdminStreamsSource);
   private readonly customers = inject(CustomersSource);
   private readonly route = inject(ActivatedRoute);
