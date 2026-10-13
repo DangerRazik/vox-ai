@@ -38,6 +38,165 @@ class DurableFifoTests(unittest.TestCase):
         self.store.complete(bid, owner)
         return bid
 
+    def test_pause_waits_for_current_call_then_resumes_without_repeating(self):
+        import threading
+        import time
+        from unittest.mock import patch
+        from fastapi.testclient import TestClient
+        from backend.api import create_app
+        from backend.config import BackendSettings
+        bid = self.ready_batch('Pause')
+        cid = str(uuid4())
+        self.store.path(bid, cid).write_bytes(b'second input')
+        with self.database.connection() as connection:
+            connection.execute('INSERT INTO calls VALUES (?, ?, ?, ?, ?, ?, ?)',
+                               (cid, bid, 'second.mp3', cid, None, None, 1))
+        started = threading.Event()
+        release = threading.Event()
+        calls = []
+        def process(path, **kwargs):
+            calls.append(path)
+            if len(calls) == 1:
+                started.set()
+                release.wait(5)
+            raise RuntimeError('test call failure')
+        settings = BackendSettings(database_path=self.database.path, materials_root=self.root/'materials',
+                                   inputs_root=self.root/'inputs', admin_api_key='test-admin-key-not-for-production')
+        admin = {'Authorization': 'Bearer test-admin-key-not-for-production'}
+        other = self.database.create_customer('Other key')
+        outsider = {'Authorization': 'Bearer '+other['api_key']}
+        self.store.start(bid)
+        with TestClient(create_app(settings)) as client, patch('pipeline.process_call', side_effect=process), ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(self.store.process, bid)
+            try:
+                self.assertTrue(started.wait(5))
+                endpoint = f'/v1/admin/batches/{bid}'
+                self.assertEqual(client.post(endpoint+'/pause').status_code, 401)
+                self.assertEqual(client.post(endpoint+'/pause', headers=outsider).status_code, 403)
+                self.assertEqual(client.post(endpoint+'/resume', headers=outsider).status_code, 403)
+                pending = client.post(endpoint+'/pause', headers=admin)
+                self.assertEqual(pending.status_code, 200)
+                self.assertTrue(pending.json()['processing_progress']['pause_requested'])
+                self.assertFalse(pending.json()['processing_progress']['paused'])
+                self.assertEqual(client.post(endpoint+'/pause', headers=admin).status_code, 200)
+                release.set()
+                deadline = time.monotonic()+5
+                while time.monotonic()<deadline and not self.store.get(bid)['processing_progress']['paused']:
+                    time.sleep(.01)
+                paused = self.store.get(bid)
+                self.assertTrue(paused['processing_progress']['paused'])
+                self.assertEqual(paused['processing_progress']['processed_calls'], 1)
+                self.assertEqual(len(calls), 1)
+                self.assertFalse(future.done())
+                self.assertIsNone(self.store.claim_next())
+                with self.database.connection() as connection:
+                    self.assertEqual(connection.execute('SELECT COUNT(*) FROM call_results').fetchone()[0], 0)
+                with self.assertRaises(ValueError): self.store.report(bid)
+                resumed = client.post(endpoint+'/resume', headers=admin)
+                self.assertEqual(resumed.status_code, 200)
+                self.assertFalse(resumed.json()['processing_progress']['pause_requested'])
+                self.assertTrue(future.result(5))
+                self.assertEqual(len(calls), 2)
+                self.assertEqual(len(set(calls)), 2)
+                self.assertEqual(self.store.get(bid)['status'], 'completed')
+                self.assertEqual(client.post(endpoint+'/pause', headers=admin).status_code, 409)
+                self.assertEqual(client.post(f'/v1/admin/batches/{uuid4()}/pause', headers=admin).status_code, 404)
+            finally:
+                release.set()
+                if self.store.get(bid)['status']=='processing': self.store.pause(bid, requested=False)
+
+    def test_restart_of_paused_attempt_requires_full_restoration(self):
+        bid = self.ready_batch('Interrupted pause')
+        self.store.start(bid)
+        self.assertEqual(self.store.claim_next(), bid)
+        self.store.pause(bid)
+        with self.database.connection() as connection:
+            connection.execute('UPDATE batches SET processing_paused = 1 WHERE id = ?', (bid,))
+        with self.store.processing_lock:
+            self.store.recover_interrupted()
+        result = self.store.get(bid)
+        self.assertEqual(result['status'], 'batch_failed')
+        self.assertFalse(result['processing_progress']['paused'])
+        self.assertFalse(result['processing_progress']['pause_requested'])
+        self.assertTrue(any((self.root/'inputs'/bid).iterdir()))
+        with self.database.connection() as connection:
+            self.assertEqual(connection.execute('SELECT COUNT(*) FROM call_results').fetchone()[0], 0)
+
+    def test_resource_analytics_include_failed_calls_and_exclude_pauses(self):
+        from unittest.mock import patch
+        from usage_metrics import usage_request
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+        import json
+        bid = self.ready_batch('Resource usage')
+        with self.database.connection() as connection:
+            connection.execute('UPDATE calls SET duration_seconds = 100 WHERE batch_id = ?', (bid,))
+        def process(*args, **kwargs):
+            for stage, tokens in [('whisper',60),('llm_roles',10),('llm_analysis',30)]:
+                with usage_request(stage) as request: request.capture({'total_tokens':tokens})
+            raise RuntimeError('failed after provider consumed tokens')
+        self.store.start(bid)
+        with patch('pipeline.process_call',side_effect=process), patch.object(self.store,'_wait_if_paused',side_effect=[0,100]), patch('backend.batches.time',SimpleNamespace(perf_counter=Mock(side_effect=[0,1,5,125]))):
+            self.assertTrue(self.store.process(bid))
+        report=self.store.report(bid)
+        metrics=report['processing_analytics']
+        self.assertEqual(metrics['total_audio_seconds'],100)
+        self.assertEqual(metrics['active_duration_seconds'],25)
+        self.assertEqual(metrics['pause_duration_seconds'],100)
+        self.assertEqual(metrics['speed_ratio'],4)
+        self.assertEqual(metrics['whisper_usage']['total_tokens'],60)
+        self.assertEqual(metrics['llm_usage']['total_tokens'],40)
+        self.assertEqual(report['processing_errors'],1)
+        # Historical reports retain duration, but never invent active time or tokens.
+        report.pop('processing_analytics')
+        with self.database.connection() as connection:
+            connection.execute('UPDATE batches SET summary = ? WHERE id = ?', (json.dumps(report),bid))
+        historical=self.store.report(bid)['processing_analytics']
+        self.assertEqual(historical['total_audio_seconds'],100)
+        self.assertIsNone(historical['active_duration_seconds'])
+        self.assertIsNone(historical['speed_ratio'])
+        self.assertIsNone(historical['whisper_usage'])
+
+    def test_progress_counts_finished_attempts_without_publishing_partial_results(self):
+        from unittest.mock import patch
+        bid = self.ready_batch('Progress')
+        cid = str(uuid4())
+        self.store.path(bid, cid).write_bytes(b'second input')
+        with self.database.connection() as connection:
+            connection.execute('INSERT INTO calls VALUES (?, ?, ?, ?, ?, ?, ?)',
+                               (cid, bid, 'second.mp3', cid, None, None, 1))
+        self.store.start(bid)
+        seen = []
+        def process(*args, **kwargs):
+            details = self.store.get(bid)
+            seen.append(details['processing_progress']['processed_calls'])
+            self.assertEqual(details['status'], 'processing')
+            self.assertEqual(details['processing_progress']['total_calls'], 2)
+            with self.database.connection() as connection:
+                self.assertEqual(connection.execute('SELECT COUNT(*) FROM call_results').fetchone()[0], 0)
+            with self.assertRaises(ValueError):
+                self.store.report(bid)
+            raise RuntimeError('failed call still counts as finished')
+        with patch('pipeline.process_call', side_effect=process):
+            self.assertTrue(self.store.process(bid))
+        self.assertEqual(seen, [0, 1])
+        self.assertEqual(self.store.get(bid)['processing_progress'], {'processed_calls': 2, 'total_calls': 2, 'paused': False, 'pause_requested': False})
+        self.assertEqual(self.store.report(bid)['processing_errors'], 2)
+        with self.assertRaises(LookupError):
+            self.store.get(bid, 'other-owner')
+
+    def test_existing_database_upgrades_and_new_attempt_resets_progress(self):
+        bid = self.ready_batch('Migration')
+        with self.database.connection() as connection:
+            connection.execute('ALTER TABLE batches DROP COLUMN processed_calls')
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(lambda _: Database(self.database.path).initialize(), range(2)))
+        self.assertEqual(self.store.get(bid)['processing_progress']['processed_calls'], 0)
+        with self.database.connection() as connection:
+            connection.execute('UPDATE batches SET processed_calls = 1 WHERE id = ?', (bid,))
+        self.store.start(bid)
+        self.assertEqual(self.store.get(bid)['processing_progress']['processed_calls'], 0)
+
     def test_fifo_is_accepted_start_not_batch_creation_and_survives_reopen(self):
         first_created = self.ready_batch('A')
         second_created = self.ready_batch('B')

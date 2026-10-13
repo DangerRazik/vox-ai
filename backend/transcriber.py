@@ -1,3 +1,4 @@
+from usage_metrics import usage_request
 import json
 import re
 from pathlib import Path
@@ -98,11 +99,12 @@ def transcribe(audio_path: str, context: ProcessingContext | None = None) -> Lis
             "prompt": context.whisper_prompt,
             "temperature": "0",
         }
-        with httpx.Client(trust_env=False, timeout=900) as client:
-            r = client.post(url, headers=headers, files=files, data=data)
-            r.raise_for_status()
-
-    payload = r.json()
+        with usage_request("whisper") as usage:
+            with httpx.Client(trust_env=False, timeout=900) as client:
+                r = client.post(url, headers=headers, files=files, data=data)
+                r.raise_for_status()
+            payload = r.json()
+            usage.capture(payload.get("usage"))
 
     # --- Разбор ответа ---
     if "transcription" in payload:
@@ -173,13 +175,15 @@ def assign_roles(segments: List[Dict], context: ProcessingContext | None = None)
     )
 
     try:
-        resp = client.chat.completions.create(
-            model=context.llm_model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[{"role": "user",
-                       "content": context.role_prompt.format(fragments=head)}],
-        )
+        with usage_request("llm_roles") as usage:
+            resp = client.chat.completions.create(
+                model=context.llm_model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[{"role": "user",
+                           "content": context.role_prompt.format(fragments=head)}],
+            )
+            usage.capture(getattr(resp, "usage", None))
         mapping = json.loads(resp.choices[0].message.content)
         op = mapping.get("operator")
         if op not in speakers:

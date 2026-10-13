@@ -38,7 +38,21 @@ export type ReportCall = CallMetadata &
         readonly error: string;
       }
   );
+export interface ProviderUsage {
+  readonly requests: number;
+  readonly totalTokens: number | null;
+  readonly reportedTokens: number;
+  readonly unreportedRequests: number;
+}
+export interface ProcessingAnalytics {
+  readonly totalAudioSeconds: number;
+  readonly activeDurationSeconds: number | null;
+  readonly speedRatio: number | null;
+  readonly whisperUsage: ProviderUsage | null;
+  readonly llmUsage: ProviderUsage | null;
+}
 export interface BatchSummary {
+  readonly processingAnalytics?: ProcessingAnalytics;
   readonly maxTotal?: number;
   readonly acceptedCalls: number;
   readonly successfulCalls: number;

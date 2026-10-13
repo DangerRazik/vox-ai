@@ -101,7 +101,7 @@ test('живые опубликованные отчёты: батч → зво�
     await page.reload();
     await expect(page.locator('.segment-text').first()).toHaveText(call.result._segments[0].text);
     await page.screenshot({ path: testInfo.outputPath('live-call-report.png'), fullPage: true });
-    await page.getByRole('link', { name: '⇄ Сравнение', exact: true }).click();
+    await page.getByRole('link', { name: 'Сравнение', exact: true }).click();
     await expect(page.getByRole('checkbox')).toHaveCount(2);
     await page.getByRole('checkbox').nth(1).check();
     await page.getByRole('checkbox').nth(0).check();

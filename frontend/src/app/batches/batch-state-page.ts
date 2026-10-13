@@ -1,3 +1,5 @@
+import { connectionError } from '../connection/api-connection';
+import { BatchProgress } from './batch-progress';
 import { TechnicalDetails } from '../shared/technical-details';
 import {
   afterRenderEffect,
@@ -12,7 +14,19 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { catchError, combineLatest, map, of, startWith, Subject, switchMap } from 'rxjs';
+import {
+  catchError,
+  combineLatest,
+  map,
+  of,
+  startWith,
+  Subject,
+  switchMap,
+  timer,
+  filter,
+  exhaustMap,
+  EMPTY,
+} from 'rxjs';
 import { ReportShell } from '../shared/report-shell';
 import { UploadIntakeResult } from '../uploads/upload-result';
 import { reportNavigation } from '../reports/report-navigation';
@@ -35,6 +49,7 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
   selector: 'app-batch-state-page',
   imports: [
     ReportShell,
+    BatchProgress,
     TechnicalDetails,
     UploadIntakeResult,
     RouterLink,
@@ -81,7 +96,26 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
                 statuses[view.details.batch.status].label
               }}</span>
             </p>
-            @if (view.details.batch.status !== 'upload_failed') {
+            @if (
+              ['queued', 'processing', 'completed', 'batch_failed'].includes(
+                view.details.batch.status
+              )
+            ) {
+              <app-batch-progress
+                [status]="view.details.batch.status"
+                [progress]="view.details.processingProgress ?? null"
+                [stale]="processingReadError()"
+                [canControl]="role === 'team' && !!view.details.processingProgress"
+                [locked]="pauseChanging()"
+                [error]="pauseError()"
+                (pauseChanged)="changePause($event)"
+              />
+            }
+            @if (
+              !['queued', 'processing', 'completed', 'upload_failed'].includes(
+                view.details.batch.status
+              )
+            ) {
               <p>{{ messages[view.details.batch.status] }}</p>
             }
             <p>Стрим: {{ view.details.stream.name }}</p>
@@ -103,7 +137,7 @@ type State = BatchDetailsResult | { kind: 'loading' | 'error' };
             }
             @if (view.details.batch.status === 'completed') {
               <a
-                class="button secondary"
+                class="button primary batch-report-button"
                 [routerLink]="navigation.batchReport(view.details.batch.id)"
                 >Открыть отчёт</a
               >
@@ -205,6 +239,43 @@ export class BatchStatePage {
   protected readonly role = this.route.snapshot.data['role'] as AccessRole;
   protected readonly navigation = reportNavigation(this.role);
   protected readonly state = signal<State>({ kind: 'loading' });
+  protected readonly processingReadError = signal(false);
+  protected readonly pauseChanging = signal(false);
+  protected readonly pauseError = signal('');
+  protected changePause(paused: boolean): void {
+    const context = this.context();
+    if (
+      !context ||
+      this.role !== 'team' ||
+      this.pauseChanging() ||
+      context.batch.status !== 'processing'
+    )
+      return;
+    const batchId = context.batch.id;
+    this.pauseChanging.set(true);
+    this.pauseError.set('');
+    this.source
+      .setPaused(batchId, paused)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          if (this.route.snapshot.paramMap.get('batchId') !== batchId) return;
+          this.pauseChanging.set(false);
+          if (result.kind === 'available') {
+            this.context.set(result.details);
+            this.processingReadError.set(false);
+          }
+          this.state.set(result);
+        },
+        error: (error) => {
+          if (this.route.snapshot.paramMap.get('batchId') !== batchId) return;
+          this.pauseChanging.set(false);
+          this.pauseError.set(
+            connectionError(error) + ' Состояние обновится автоматически; запрос можно повторить.',
+          );
+        },
+      });
+  }
   protected readonly context = signal<BatchDetails | null>(null);
   protected readonly request = signal<RestoreRequest | null>(null);
   protected readonly pending = signal(false);
@@ -257,6 +328,9 @@ export class BatchStatePage {
           const batchId = params.get('batchId') ?? '';
           if (this.context()?.batch.id !== batchId) {
             this.launchNotice.set('');
+            this.pauseError.set('');
+            this.pauseChanging.set(false);
+            this.processingReadError.set(false);
             this.context.set(null);
             this.request.set(null);
             this.pending.set(false);
@@ -278,6 +352,45 @@ export class BatchStatePage {
         if (state.kind === 'available') this.context.set(state.details);
         if (state.kind === 'not-found') this.context.set(null);
         this.state.set(state);
+      });
+    this.route.paramMap
+      .pipe(
+        switchMap((params) => {
+          const batchId = params.get('batchId') ?? '';
+          return timer(5000, 5000).pipe(
+            filter(
+              () =>
+                this.context()?.batch.id === batchId &&
+                ['queued', 'processing'].includes(this.context()!.batch.status) &&
+                !this.pending() &&
+                !this.pauseChanging(),
+            ),
+            exhaustMap(() =>
+              this.source.batchDetails(this.role, batchId).pipe(
+                catchError(() => {
+                  this.processingReadError.set(true);
+                  return EMPTY;
+                }),
+              ),
+            ),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((result) => {
+        if (
+          result.kind === 'available' &&
+          result.details.batch.id === this.route.snapshot.paramMap.get('batchId')
+        ) {
+          this.processingReadError.set(false);
+          this.pauseError.set('');
+          this.context.set(result.details);
+          this.state.set(result);
+        }
+        if (result.kind === 'not-found') {
+          this.context.set(null);
+          this.state.set(result);
+        }
       });
   }
   protected reload() {

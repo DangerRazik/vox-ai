@@ -1,3 +1,4 @@
+from usage_metrics import usage_request
 import json
 import copy
 from typing import Dict
@@ -68,15 +69,17 @@ def _call_llm(user_prompt: str, context: ProcessingContext) -> str:
         http_client=httpx.Client(trust_env=False, timeout=120),
     )
     try:
-        resp = client.chat.completions.create(
-            model=context.llm_model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": context.analysis_system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-        )
+        with usage_request("llm_analysis") as usage:
+            resp = client.chat.completions.create(
+                model=context.llm_model,
+                temperature=0,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": context.analysis_system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+            )
+            usage.capture(getattr(resp, "usage", None))
         return resp.choices[0].message.content
     finally:
         client.close()

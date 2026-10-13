@@ -138,6 +138,13 @@ class Database:
                     PRIMARY KEY (stream_id, kind, target_id)
                 );
             """)
+            connection.execute("BEGIN IMMEDIATE")
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(batches)")}
+            if "processed_calls" not in columns:
+                connection.execute("ALTER TABLE batches ADD COLUMN processed_calls INTEGER NOT NULL DEFAULT 0")
+            for column in ("pause_requested", "processing_paused"):
+                if column not in columns:
+                    connection.execute(f"ALTER TABLE batches ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0")
             # Upgrade already published batches without touching their analytics.
             connection.execute("INSERT OR IGNORE INTO input_cleanup (batch_id, status, updated_at) "
                                "SELECT id, 'pending', ? FROM batches WHERE status = 'completed'",

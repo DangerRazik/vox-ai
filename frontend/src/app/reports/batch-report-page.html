@@ -32,6 +32,7 @@
     </div>
 
     <app-report-summary [summary]="report.summary" />
+    <app-processing-analytics [analytics]="report.summary.processingAnalytics ?? null" />
     <app-criterion-chart [summary]="report.summary" />
     <section class="report-section" aria-labelledby="calls-title">
       <h2 id="calls-title">Звонки батча</h2>

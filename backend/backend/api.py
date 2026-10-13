@@ -207,6 +207,14 @@ def create_app(settings: BackendSettings | None = None) -> FastAPI:
         batch, started = batches.start(str(batch_id))
         return JSONResponse(status_code=202 if started else 200, content=batch)
 
+    @app.post("/v1/admin/batches/{batch_id}/pause")
+    def pause_batch(batch_id: UUID, principal: Principal = Depends(administrator)):
+        return batches.pause(str(batch_id))
+
+    @app.post("/v1/admin/batches/{batch_id}/resume")
+    def resume_batch(batch_id: UUID, principal: Principal = Depends(administrator)):
+        return batches.pause(str(batch_id), requested=False)
+
     @app.get("/v1/batches/{batch_id}/calls")
     def list_calls(batch_id: UUID, principal: Principal = Depends(authenticate)):
         return {"items": batches.calls(str(batch_id), principal.customer_id)}

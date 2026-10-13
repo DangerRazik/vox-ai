@@ -1,3 +1,4 @@
+import { ProcessingAnalytics } from './processing-analytics';
 import { TechnicalDetails } from '../shared/technical-details';
 import {
   ChangeDetectionStrategy,
@@ -23,7 +24,14 @@ type ReportState = BatchReportResult | { readonly kind: 'loading' | 'error' };
 
 @Component({
   selector: 'app-batch-report-page',
-  imports: [RouterLink, ReportShell, ReportSummary, CriterionChart, TechnicalDetails],
+  imports: [
+    RouterLink,
+    ReportShell,
+    ReportSummary,
+    CriterionChart,
+    TechnicalDetails,
+    ProcessingAnalytics,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './batch-report-page.html',
 })

@@ -80,7 +80,7 @@ export class ComparisonTable {
   }
   protected readonly criteria = CRITERIA;
   protected readonly summaryRows: readonly {
-    field: keyof Omit<BatchSummary, 'criterionAverages' | 'maxTotal'>;
+    field: keyof Omit<BatchSummary, 'criterionAverages' | 'maxTotal' | 'processingAnalytics'>;
     label: string;
   }[] = [
     { field: 'averageTotal', label: 'Средняя оценка, из 11' },

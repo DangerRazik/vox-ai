@@ -5,7 +5,14 @@ export interface RecoveryProgress {
   readonly expectedCalls: number;
   readonly receivedCalls: number;
 }
+export interface ProcessingProgress {
+  readonly paused?: boolean;
+  readonly pauseRequested?: boolean;
+  readonly processedCalls: number;
+  readonly totalCalls: number;
+}
 export interface BatchDetails {
+  readonly processingProgress?: ProcessingProgress | null;
   readonly batch: Batch;
   readonly organization: Organization;
   readonly stream: Stream;

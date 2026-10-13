@@ -443,3 +443,54 @@ test('команда читает отчёт выбранного заказчи
   await expect(page).toHaveURL(/\/customer\/batches$/);
   await expect(page.locator('app-report-summary')).toHaveCount(0);
 });
+
+test('отчёт показывает производительность, токены и отсутствие статистики без выдуманных нулей', async ({
+  page,
+}) => {
+  const usage = (total: number) => ({
+    requests: 2,
+    total_tokens: total,
+    reported_tokens: total,
+    unreported_requests: 0,
+  });
+  let analytics = {
+    total_audio_seconds: 600,
+    active_duration_seconds: 150 as number | null,
+    speed_ratio: 4 as number | null,
+    whisper_usage: usage(300) as ReturnType<typeof usage> | null,
+    llm_usage: usage(2500),
+  };
+  await page.route('**/api/v1/batches/b1/report', (r) =>
+    r.fulfill({ json: { ...summary, processing_analytics: analytics } }),
+  );
+  await login(page);
+  await page.goto('/customer/batches/b1/report');
+  const block = page.getByRole('region', { name: 'Производительность обработки', exact: true });
+  await expect(block.locator('.processing-speed-value')).toHaveText('4×');
+  await expect(block).toContainText('10 мин');
+  await expect(block).toContainText('2 мин 30 с');
+  await expect(block.locator('dd').last()).toHaveText(/2\s500/);
+  await page.screenshot({ path: '.scratch/runtime/processing-analytics.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await page.screenshot({
+    path: '.scratch/runtime/processing-analytics-mobile.png',
+    fullPage: true,
+  });
+  analytics = {
+    ...analytics,
+    active_duration_seconds: null,
+    speed_ratio: null,
+    whisper_usage: null,
+    llm_usage: {
+      requests: 2,
+      total_tokens: null as unknown as number,
+      reported_tokens: 0,
+      unreported_requests: 2,
+    },
+  };
+  await page.reload();
+  await expect(block.locator('.processing-speed-value')).toHaveText('Не сохранена');
+  await expect(block).toContainText('Не сохранены');
+  await expect(block).toContainText('Не предоставлены');
+});

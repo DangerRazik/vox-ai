@@ -66,7 +66,7 @@ import { ApiConnection } from './api-connection';
               [routerLink]="['/customer/comparison']"
               [queryParams]="listQueryParams()"
               [attr.aria-current]="section() === 'comparison' ? 'page' : null"
-              >⇄ Сравнение</a
+              >Сравнение</a
             >
           }
         </nav>

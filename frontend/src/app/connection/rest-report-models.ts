@@ -3,6 +3,7 @@ import { formatNumber } from '../shared/formatting';
 import { roleFromRest, SPEAKER_LABELS } from '../reports/speaker-roles';
 import {
   BatchSummary,
+  ProviderUsage,
   CriterionId,
   CriterionScores,
   CallAnalysis,
@@ -27,7 +28,20 @@ export interface StreamDto {
   name: string;
   options: { speech_rate_enabled: boolean; zero_total_on_critical: boolean };
 }
+interface ProviderUsageDto {
+  requests: number;
+  total_tokens: number | null;
+  reported_tokens: number;
+  unreported_requests: number;
+}
 export interface SummaryDto {
+  processing_analytics?: {
+    total_audio_seconds: number;
+    active_duration_seconds: number | null;
+    speed_ratio: number | null;
+    whisper_usage: ProviderUsageDto | null;
+    llm_usage: ProviderUsageDto | null;
+  };
   max_total?: number;
   batch_id: string;
   stream_id: string;
@@ -82,10 +96,31 @@ export function batchFromRest(dto: BatchDto, average: number | null = null): Bat
     averageTotal: average,
   };
 }
+function providerUsage(dto: ProviderUsageDto | null): ProviderUsage | null {
+  return dto
+    ? {
+        requests: dto.requests,
+        totalTokens: dto.total_tokens,
+        reportedTokens: dto.reported_tokens,
+        unreportedRequests: dto.unreported_requests,
+      }
+    : null;
+}
 export function summaryFromRest(dto: SummaryDto): BatchSummary {
   return {
     maxTotal: dto.max_total ?? 11,
     acceptedCalls: dto.total_calls,
+    ...(dto.processing_analytics
+      ? {
+          processingAnalytics: {
+            totalAudioSeconds: dto.processing_analytics.total_audio_seconds,
+            activeDurationSeconds: dto.processing_analytics.active_duration_seconds,
+            speedRatio: dto.processing_analytics.speed_ratio,
+            whisperUsage: providerUsage(dto.processing_analytics.whisper_usage),
+            llmUsage: providerUsage(dto.processing_analytics.llm_usage),
+          },
+        }
+      : {}),
     successfulCalls: dto.successful_calls,
     processingErrors: dto.processing_errors,
     uploadErrors: dto.upload_errors,

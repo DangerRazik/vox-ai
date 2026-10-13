@@ -1,3 +1,4 @@
+from usage_metrics import UsageTotals
 import hashlib
 import json
 import math
@@ -6,6 +7,7 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+import time
 from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
@@ -78,6 +80,10 @@ class BatchStore:
                 "upload_id": row["upload_id"], "status": row["status"], "total_calls": count, "upload_errors": errors,
                 "created_at": row["created_at"], "processing_started_at": row["processing_started_at"],
                 "processing_finished_at": row["processing_finished_at"], "error": row["error"],
+                "processing_progress": {"processed_calls": count if row["status"] == "completed" else row["processed_calls"],
+                                        "total_calls": count,
+                                        "pause_requested": row["status"] == "processing" and bool(row["pause_requested"]),
+                                        "paused": row["status"] == "processing" and bool(row["processing_paused"])},
                 "cleanup": dict(cleanup) if cleanup else None}
 
     def list(self, owner=None, stream_id=None, status=None):
@@ -290,10 +296,41 @@ class BatchStore:
                 connection.execute("INSERT INTO batch_queue (batch_id, accepted_at) VALUES (?, ?)",
                                    (batch_id, now()))
                 connection.execute("UPDATE batches SET status = 'queued', error = NULL, summary = NULL, "
-                                   "processing_started_at = NULL, processing_finished_at = NULL WHERE id = ?", (batch_id,))
+                                   "processing_started_at = NULL, processing_finished_at = NULL, processed_calls = 0, pause_requested = 0, processing_paused = 0 WHERE id = ?", (batch_id,))
             elif state not in ("queued", "processing", "completed"):
                 raise BatchConflict("batch_not_ready")
         return self.get(batch_id), state == "ready"
+
+    def pause(self, batch_id, requested=True):
+        with self.database.connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute("SELECT status, processed_calls, processing_paused, pause_requested FROM batches WHERE id = ?",
+                                     (batch_id,)).fetchone()
+            if row is None:
+                raise LookupError('Batch not found')
+            count = connection.execute("SELECT COUNT(*) FROM calls WHERE batch_id = ?", (batch_id,)).fetchone()[0]
+            if row['status'] != 'processing' or (requested and not row['processing_paused'] and not row['pause_requested'] and row['processed_calls'] >= count):
+                raise BatchConflict('batch_not_processing')
+            connection.execute("UPDATE batches SET pause_requested = ?, processing_paused = CASE WHEN ? THEN processing_paused ELSE 0 END WHERE id = ?",
+                               (int(requested), int(requested), batch_id))
+        return self.get(batch_id)
+
+    def _wait_if_paused(self, batch_id):
+        pause_started = None
+        while True:
+            with self.database.connection() as connection:
+                connection.execute("BEGIN IMMEDIATE")
+                row = connection.execute("SELECT status, pause_requested FROM batches WHERE id = ?", (batch_id,)).fetchone()
+                if row is None or row['status'] != 'processing':
+                    raise RuntimeError('Batch is no longer processing')
+                requested = bool(row['pause_requested'])
+                connection.execute("UPDATE batches SET processing_paused = ? WHERE id = ?", (int(requested), batch_id))
+            if not requested:
+                return time.perf_counter() - pause_started if pause_started is not None else 0.0
+            if pause_started is None:
+                pause_started = time.perf_counter()
+            # No transaction is held while paused; the lifetime worker lock keeps FIFO exclusive.
+            time.sleep(0.5)
 
     def claim_next(self, expected_batch_id=None):
         """Claim the oldest accepted start and transition it in one short transaction."""
@@ -309,7 +346,7 @@ class BatchStore:
                 return None
             started = now()
             connection.execute("UPDATE batch_queue SET claimed_at = ? WHERE batch_id = ?", (started, row[0]))
-            connection.execute("UPDATE batches SET status = 'processing', processing_started_at = ? "
+            connection.execute("UPDATE batches SET status = 'processing', processed_calls = 0, pause_requested = 0, processing_paused = 0, processing_started_at = ? "
                                "WHERE id = ? AND status = 'queued'", (started, row[0]))
             return row[0]
 
@@ -344,7 +381,14 @@ class BatchStore:
         if batch["status"] != "completed":
             raise BatchConflict("report_not_available")
         with self.database.connection() as connection:
-            return json.loads(connection.execute("SELECT summary FROM batches WHERE id = ?", (batch_id,)).fetchone()[0])
+            summary = json.loads(connection.execute("SELECT summary FROM batches WHERE id = ?", (batch_id,)).fetchone()[0])
+            if 'processing_analytics' not in summary:
+                audio = connection.execute("SELECT COALESCE(SUM(duration_seconds), 0) FROM calls WHERE batch_id = ?", (batch_id,)).fetchone()[0]
+                summary['processing_analytics'] = {
+                    'total_audio_seconds': audio, 'active_duration_seconds': None, 'speed_ratio': None,
+                    'whisper_usage': None, 'llm_usage': None,
+                }
+            return summary
 
     def compare(self, stream_id, batch_ids, owner=None):
         ids = list(dict.fromkeys(batch_ids))
@@ -405,18 +449,37 @@ class BatchStore:
         # Caller owns processing_lock; model requests never hold a DB transaction.
         from pipeline import process_call
 
+        started_clock = time.perf_counter()
+        paused_seconds = 0.0
+        usage = UsageTotals()
+        call_times = []
         try:
             batch = self.get(batch_id)
             context = self.streams.load_context(batch["stream_id"], batch["customer_id"])
             calls = self.calls(batch_id)
             outcomes = []
             for call in calls:
+                paused_seconds += self._wait_if_paused(batch_id)
+                call_started = time.perf_counter()
                 try:
-                    result = process_call(str(self.path(batch_id, call["call_id"])), context=context)
+                    with usage.collect():
+                        result = process_call(str(self.path(batch_id, call["call_id"])), context=context)
                     outcomes.append((call["call_id"], "successful", result, None))
                 except Exception:
                     # No service responses, secrets or local paths in public errors.
                     outcomes.append((call["call_id"], "processing_error", None, "call_processing_failed"))
+                call_times.append(time.perf_counter() - call_started)
+                # Operational count only: scores and call outcomes still publish atomically below.
+                with self.database.connection() as connection:
+                    updated = connection.execute(
+                        "UPDATE batches SET processed_calls = ? WHERE id = ? AND status = 'processing'",
+                        (len(outcomes), batch_id),
+                    )
+                    if updated.rowcount != 1:
+                        raise RuntimeError("Batch is no longer processing")
+            paused_seconds += self._wait_if_paused(batch_id)
+            active_seconds = max(0.0, time.perf_counter() - started_clock - paused_seconds)
+            audio_seconds = sum(call['duration_seconds'] for call in calls)
             finished = now()
             successful = [outcome[2] for outcome in outcomes if outcome[2] is not None]
             count = len(successful)
@@ -431,6 +494,17 @@ class BatchStore:
                        "processing_started_at": batch["processing_started_at"], "processing_finished_at": finished,
                        "processing_duration_seconds": (datetime.fromisoformat(finished) -
                                                        datetime.fromisoformat(batch["processing_started_at"])).total_seconds()}
+            summary['processing_analytics'] = {
+                'total_audio_seconds': audio_seconds,
+                'active_duration_seconds': active_seconds,
+                'pause_duration_seconds': paused_seconds,
+                'calls_duration_seconds': sum(call_times),
+                'speed_ratio': audio_seconds / active_seconds if active_seconds > 0 else None,
+                'whisper_usage': usage.summary('whisper'),
+                'llm_usage': usage.summary('llm_roles', 'llm_analysis'),
+                'llm_roles_usage': usage.summary('llm_roles'),
+                'llm_analysis_usage': usage.summary('llm_analysis'),
+            }
             with self.database.connection() as connection:
                 connection.execute("BEGIN IMMEDIATE")
                 for call_id, status, result, error in outcomes:

@@ -22,6 +22,12 @@ interface IntakeItem {
   error?: { code: string; message: string };
 }
 interface BatchStateDto extends BatchDto {
+  processing_progress?: {
+    processed_calls: number;
+    total_calls: number;
+    paused?: boolean;
+    pause_requested?: boolean;
+  };
   error: string | null;
 }
 interface ArchiveDto extends BatchStateDto {
@@ -97,6 +103,11 @@ function intakeFromRest(dto: ArchiveDto): UploadResult {
 
 @Injectable({ providedIn: 'root' })
 export class RestBatchDetailsSource extends BatchDetailsSource {
+  setPaused(batchId: string, paused: boolean): Observable<BatchDetailsResult> {
+    return this.connection
+      .post(`/admin/batches/${encodeURIComponent(batchId)}/${paused ? 'pause' : 'resume'}`, {})
+      .pipe(switchMap(() => this.batchDetails('team', batchId)));
+  }
   private readonly connection = inject(ApiConnection);
   batchDetails(_role: AccessRole, batchId: string): Observable<BatchDetailsResult> {
     const path = `/batches/${encodeURIComponent(batchId)}`;
@@ -127,6 +138,14 @@ export class RestBatchDetailsSource extends BatchDetailsSource {
               },
               uploadId: batch.upload_id,
               recovery: null,
+              processingProgress: batch.processing_progress
+                ? {
+                    processedCalls: batch.processing_progress.processed_calls,
+                    totalCalls: batch.processing_progress.total_calls,
+                    paused: batch.processing_progress.paused,
+                    pauseRequested: batch.processing_progress.pause_requested,
+                  }
+                : null,
               failure:
                 ['batch_failed', 'upload_failed', 'restoring', 'uploading'].includes(
                   batch.status,
